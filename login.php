@@ -1,64 +1,74 @@
 <?php
 session_start();
-include 'config/conexion.php';
+require_once 'includes/auth.php';
 
-$mensaje = "";
+if (current_user()) {
+    header('Location: principal.php');
+    exit;
+}
 
-if ($_POST) {
-    $dni = $_POST['dni'];
-    $pass = $_POST['password'];
+$mensaje = '';
+$email = '';
 
-    $stmt = $conexion->prepare("SELECT * FROM usuarios WHERE dni=?");
-    $stmt->bind_param("s", $dni);
-    $stmt->execute();
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $email = strtolower(trim($_POST['email'] ?? ''));
+    $password = $_POST['password'] ?? '';
 
-    $res = $stmt->get_result()->fetch_assoc();
-
-    if ($res && password_verify($pass, $res['password'])) {
-        $_SESSION['user'] = $dni;
-        header("Location: dashboard.php");
-        exit;
+    if ($email === '' || $password === '') {
+        $mensaje = 'Completa correo y contrasena.';
     } else {
-        $mensaje = "Credenciales incorrectas";
+        $response = api_request('POST', '/auth/login', [
+            'email' => $email,
+            'password' => $password,
+        ]);
+
+        if ($response['ok']) {
+            $_SESSION['auth'] = [
+                'usuario' => $response['data']['usuario'],
+                'permisos' => $response['data']['permisos'] ?? [],
+                'modulos' => $response['data']['modulos'] ?? [],
+            ];
+
+            header('Location: principal.php');
+            exit;
+        }
+
+        $mensaje = $response['error'] ?: 'Credenciales incorrectas.';
     }
 }
 ?>
-
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Login</title>
 <link rel="stylesheet" href="css/estilos.css">
+<link rel="icon" href="imagenes/favicon.png">
 </head>
 <body>
 
 <div class="container">
+    <div class="login-logo">
+        <img src="imagenes/firmape.png" alt="Logo Empresa">
+    </div>
 
-<!-- 🔥 LOGO EMPRESA -->
-<div class="login-logo">
-    <img src="imagenes/firmape.png" alt="Logo Empresa">
-</div>
+    <h2>Login</h2>
 
-<h2>Login</h2>
+    <form method="POST">
+        <input type="email" name="email" placeholder="Correo" value="<?= e($email) ?>" required>
+        <input type="password" name="password" placeholder="Contrasena" required>
+        <button type="submit">Ingresar</button>
+    </form>
 
-<form method="POST">
+    <?php if ($mensaje !== ''): ?>
+    <div class="alert-error show"><?= e($mensaje) ?></div>
+    <?php endif; ?>
 
-<input type="text" name="dni" placeholder="DNI" required>
-<input type="password" name="password" placeholder="Contraseña" required>
-
-<button type="submit">Ingresar</button>
-
-</form>
-
-<?php if (!empty($mensaje)): ?>
-<p class="error"><?= $mensaje ?></p>
-<?php endif; ?>
-
-<div class="links">
-    <a href="register.php">Crear cuenta</a>
-    <a href="recuperar.php">¿Olvidaste tu contraseña?</a>
-</div>
-
+    <div class="links">
+        <a href="register.php">Crear usuario</a>
+        <a href="principal.php">Panel</a>
+    </div>
 </div>
 
 </body>

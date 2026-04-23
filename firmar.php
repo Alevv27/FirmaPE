@@ -1,9 +1,8 @@
 <?php
 session_start();
-if (!isset($_SESSION['user'])) {
-    header("Location: login.php");
-    exit();
-}
+require_once 'includes/auth.php';
+
+require_module('FIRMAR');
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -13,7 +12,6 @@ if (!isset($_SESSION['user'])) {
     <title>Firmar Documento</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <style>
-        /* --- ESTILO CORPORATIVO INTEGRADO --- */
         body {
             margin: 0;
             font-family: Arial, sans-serif;
@@ -42,7 +40,6 @@ if (!isset($_SESSION['user'])) {
 
         h2 { color: #333; margin-top: 0; }
 
-        /* --- ZONA DE FIRMA --- */
         #canvasFirma {
             border: 2px dashed #4db8ff;
             background: #fff;
@@ -61,7 +58,6 @@ if (!isset($_SESSION['user'])) {
             width: 92%;
         }
 
-        /* --- VISOR DE PDF --- */
         #pdfContainer {
             position: relative;
             margin-top: 20px;
@@ -80,14 +76,13 @@ if (!isset($_SESSION['user'])) {
 
         #firmaImg {
             position: absolute;
-            width: 120px; /* Tamaño inicial de la firma en el PDF */
+            width: 120px;
             cursor: move;
             display: none;
             z-index: 100;
             filter: contrast(1.1) brightness(1.1);
         }
 
-        /* --- BOTONES --- */
         button {
             width: 92%;
             margin: 8px auto;
@@ -130,27 +125,26 @@ if (!isset($_SESSION['user'])) {
     <h2>Firmar Documento</h2>
 
     <form method="POST" action="procesar_firma.php" enctype="multipart/form-data">
-        
         <p style="font-size: 13px; font-weight: bold;">1. Sube el documento PDF:</p>
         <input type="file" name="pdf" accept="application/pdf" required>
-        
+
         <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
 
-        <p style="font-size: 13px; font-weight: bold;">2. Tu firma (Dibuja o Sube foto):</p>
+        <p style="font-size: 13px; font-weight: bold;">2. Tu firma (dibuja o sube foto):</p>
         <canvas id="canvasFirma" width="350" height="150"></canvas>
-        
+
         <div style="display: flex; justify-content: space-between; width: 92%; margin: 0 auto;">
             <button type="button" class="btn-aux" onclick="limpiarCanvas()">Limpiar</button>
             <button type="button" class="btn-aux" onclick="usarDibujo()">Usar dibujo</button>
         </div>
 
         <div class="upload-area">
-            <span style="font-size: 12px; color: #475569;">¿Tienes la firma en foto? súbela aquí:</span>
+            <span style="font-size: 12px; color: #475569;">Si ya tienes la firma en foto, subela aqui:</span>
             <input type="file" id="inputFoto" accept="image/*">
             <button type="button" onclick="procesarImagenFirma()" style="background:#0ea5e9; width: 100%; font-size:12px;">Quitar fondo y colocar</button>
         </div>
 
-        <p style="font-size: 13px; font-weight: bold; margin-top: 20px;">3. Arrastra la firma a su posición:</p>
+        <p style="font-size: 13px; font-weight: bold; margin-top: 20px;">3. Arrastra la firma a su posicion:</p>
         <div id="pdfContainer">
             <canvas id="pdfCanvas"></canvas>
             <img id="firmaImg" alt="Firma">
@@ -164,16 +158,15 @@ if (!isset($_SESSION['user'])) {
     </form>
 
     <div class="links" style="margin-top: 20px;">
-        <a href="principal.php">⬅ Volver al Panel</a>
+        <a href="principal.php">Volver al panel</a>
     </div>
 </div>
 
 <canvas id="canvasOculto" style="display:none;"></canvas>
 
 <script>
-// --- CONFIGURACIÓN DE DIBUJO ---
-const canvas = document.getElementById("canvasFirma");
-const ctx = canvas.getContext("2d");
+const canvas = document.getElementById('canvasFirma');
+const ctx = canvas.getContext('2d');
 let dibujando = false;
 
 canvas.onmousedown = () => dibujando = true;
@@ -181,8 +174,8 @@ canvas.onmouseup = () => { dibujando = false; ctx.beginPath(); };
 canvas.onmousemove = (e) => {
     if (!dibujando) return;
     ctx.lineWidth = 3;
-    ctx.lineCap = "round";
-    ctx.strokeStyle = "#000";
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#000';
     ctx.lineTo(e.offsetX, e.offsetY);
     ctx.stroke();
     ctx.beginPath();
@@ -192,13 +185,12 @@ canvas.onmousemove = (e) => {
 function limpiarCanvas() { ctx.clearRect(0, 0, canvas.width, canvas.height); }
 
 function usarDibujo() {
-    posicionarFirma(canvas.toDataURL("image/png"));
+    posicionarFirma(canvas.toDataURL('image/png'));
 }
 
-// --- PROCESAMIENTO DE IMAGEN (QUITA FONDOS GRISES/FOTOS) ---
 function procesarImagenFirma() {
     const file = document.getElementById('inputFoto').files[0];
-    if (!file) { alert("Por favor, selecciona una imagen"); return; }
+    if (!file) { alert('Por favor, selecciona una imagen'); return; }
 
     const reader = new FileReader();
     reader.onload = function(e) {
@@ -206,8 +198,7 @@ function procesarImagenFirma() {
         img.onload = function() {
             const oCanvas = document.getElementById('canvasOculto');
             const oCtx = oCanvas.getContext('2d', { willReadFrequently: true });
-            
-            // Redimensionar para procesar
+
             const scale = 800 / img.width;
             oCanvas.width = 800;
             oCanvas.height = img.height * scale;
@@ -216,61 +207,57 @@ function procesarImagenFirma() {
             const imageData = oCtx.getImageData(0, 0, oCanvas.width, oCanvas.height);
             const data = imageData.data;
 
-            // Algoritmo Adaptativo (Busca el promedio de brillo de la foto)
             let totalLum = 0;
             for (let i = 0; i < data.length; i += 4) {
-                totalLum += (data[i] + data[i+1] + data[i+2]) / 3;
+                totalLum += (data[i] + data[i + 1] + data[i + 2]) / 3;
             }
             const avgLum = totalLum / (data.length / 4);
-            
-            // Umbral: Lo que sea más oscuro que el 70% del promedio es trazo
             const threshold = avgLum * 0.8;
 
             for (let i = 0; i < data.length; i += 4) {
-                const brightness = (data[i] + data[i+1] + data[i+2]) / 3;
+                const brightness = (data[i] + data[i + 1] + data[i + 2]) / 3;
                 if (brightness > threshold) {
-                    data[i+3] = 0; // Transparente (Fondo)
+                    data[i + 3] = 0;
                 } else {
-                    data[i] = 0; data[i+1] = 0; data[i+2] = 0; // Negro puro (Trazo)
+                    data[i] = 0;
+                    data[i + 1] = 0;
+                    data[i + 2] = 0;
                 }
             }
+
             oCtx.putImageData(imageData, 0, 0);
-            posicionarFirma(oCanvas.toDataURL("image/png"));
+            posicionarFirma(oCanvas.toDataURL('image/png'));
         };
         img.src = e.target.result;
     };
     reader.readAsDataURL(file);
 }
 
-// --- POSICIONAR AL CENTRO DEL PDF ---
 function posicionarFirma(url) {
-    document.getElementById("firmaBase64").value = url;
-    const fImg = document.getElementById("firmaImg");
+    document.getElementById('firmaBase64').value = url;
+    const fImg = document.getElementById('firmaImg');
     fImg.src = url;
-    fImg.style.display = "block";
+    fImg.style.display = 'block';
 
     const rect = pdfCanvas.getBoundingClientRect();
-    if(rect.width > 0) {
-        // Calcular centro
+    if (rect.width > 0) {
         let x = (rect.width / 2) - (fImg.width / 2);
         let y = (rect.height / 2) - (fImg.height / 2);
 
-        fImg.style.left = x + "px";
-        fImg.style.top = y + "px";
+        fImg.style.left = x + 'px';
+        fImg.style.top = y + 'px';
 
-        // Guardar porcentajes
-        document.getElementById("pX").value = x / rect.width;
-        document.getElementById("pY").value = y / rect.height;
+        document.getElementById('pX').value = x / rect.width;
+        document.getElementById('pY').value = y / rect.height;
     }
 }
 
-// --- VISOR DE PDF (PDF.JS) ---
-const pdfCanvas = document.getElementById("pdfCanvas");
-const ctxPDF = pdfCanvas.getContext("2d");
+const pdfCanvas = document.getElementById('pdfCanvas');
+const ctxPDF = pdfCanvas.getContext('2d');
 
-document.querySelector('input[name="pdf"]').addEventListener("change", function(e) {
+document.querySelector('input[name="pdf"]').addEventListener('change', function(e) {
     const file = e.target.files[0];
-    if(!file) return;
+    if (!file) return;
     const reader = new FileReader();
     reader.onload = function() {
         const typed = new Uint8Array(this.result);
@@ -286,27 +273,25 @@ document.querySelector('input[name="pdf"]').addEventListener("change", function(
     reader.readAsArrayBuffer(file);
 });
 
-// --- MOVIMIENTO DE LA FIRMA (DRAG AND DROP) ---
-const fImg = document.getElementById("firmaImg");
+const fImg = document.getElementById('firmaImg');
 fImg.onmousedown = function(e) {
     e.preventDefault();
     function mover(ev) {
         const rect = pdfCanvas.getBoundingClientRect();
         let x = ev.clientX - rect.left - (fImg.width / 2);
         let y = ev.clientY - rect.top - (fImg.height / 2);
-        
-        // Limites
+
         x = Math.max(0, Math.min(x, rect.width - fImg.width));
         y = Math.max(0, Math.min(y, rect.height - fImg.height));
-        
-        fImg.style.left = x + "px";
-        fImg.style.top = y + "px";
-        
-        document.getElementById("pX").value = x / rect.width;
-        document.getElementById("pY").value = y / rect.height;
+
+        fImg.style.left = x + 'px';
+        fImg.style.top = y + 'px';
+
+        document.getElementById('pX').value = x / rect.width;
+        document.getElementById('pY').value = y / rect.height;
     }
-    document.addEventListener("mousemove", mover);
-    document.onmouseup = () => document.removeEventListener("mousemove", mover);
+    document.addEventListener('mousemove', mover);
+    document.onmouseup = () => document.removeEventListener('mousemove', mover);
 };
 </script>
 

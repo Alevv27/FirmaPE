@@ -1,25 +1,8 @@
 <?php
 session_start();
+require_once 'includes/auth.php';
 
-if (!isset($_SESSION['user'])) {
-    header("Location: login.php");
-    exit;
-}
-?>
+require_login();
 
-<!DOCTYPE html>
-<html>
-<head>
-<title>Dashboard</title>
-<link rel="stylesheet" href="css/estilos.css">
-</head>
-<body>
-
-<div class="container">
-<h2>Bienvenido <?= $_SESSION['user'] ?></h2>
-
-<a href="logout.php">Cerrar sesión</a>
-</div>
-
-</body>
-</html>
+header('Location: principal.php');
+exit;

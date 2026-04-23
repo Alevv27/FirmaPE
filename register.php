@@ -1,164 +1,174 @@
 <?php
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
+session_start();
+require_once 'includes/auth.php';
 
-include 'config/conexion.php';
+$error = '';
+$success = '';
 
-$error = "";
+$empresasResponse = api_request('GET', '/empresas');
+$perfilesResponse = api_request('GET', '/perfiles');
 
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+$empresas = $empresasResponse['ok'] ? ($empresasResponse['data']['empresas'] ?? []) : [];
+$perfiles = $perfilesResponse['ok'] ? ($perfilesResponse['data']['perfiles'] ?? []) : [];
 
-    $dni = trim($_POST['dni']);
-    $correo = trim($_POST['correo']);
-    $password = $_POST['password'];
-    $confirm = $_POST['confirm'];
+$nombre = trim($_POST['nombre'] ?? '');
+$correo = trim($_POST['correo'] ?? '');
+$perfilId = $_POST['perfil_id'] ?? '';
+$empresaId = $_POST['empresa_id'] ?? '';
 
-    // VALIDACIONES (1 ERROR ACTIVO)
-    if (!preg_match('/^[0-9]{8}$/', $dni)) {
-        $error = "dni";
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $password = $_POST['password'] ?? '';
+    $confirm = $_POST['confirm'] ?? '';
 
+    if ($nombre === '') {
+        $error = 'nombre';
     } elseif (!filter_var($correo, FILTER_VALIDATE_EMAIL)) {
-        $error = "email";
-
+        $error = 'email';
     } elseif ($password !== $confirm) {
-        $error = "password";
-
+        $error = 'password';
     } elseif (!preg_match('/^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[\W]).{8,}$/', $password)) {
-        $error = "weak";
-
+        $error = 'weak';
+    } elseif ($perfilId === '' || $empresaId === '') {
+        $error = 'select';
     } else {
+        $response = api_request('POST', '/usuarios', [
+            'nombre' => $nombre,
+            'email' => strtolower($correo),
+            'password' => $password,
+            'perfil_id' => (int) $perfilId,
+            'empresa_id' => (int) $empresaId,
+        ]);
 
-        $check = $conexion->prepare("SELECT id FROM usuarios WHERE dni=? OR correo=?");
-        $check->bind_param("ss", $dni, $correo);
-        $check->execute();
-
-        if ($check->get_result()->num_rows > 0) {
-            $error = "exists";
+        if ($response['ok']) {
+            $success = 'Usuario registrado correctamente.';
+            $nombre = '';
+            $correo = '';
+            $perfilId = '';
+            $empresaId = '';
         } else {
-
-            $hash = password_hash($password, PASSWORD_DEFAULT);
-
-            $stmt = $conexion->prepare("INSERT INTO usuarios (dni, correo, password) VALUES (?, ?, ?)");
-            $stmt->bind_param("sss", $dni, $correo, $hash);
-
-            if ($stmt->execute()) {
-                header("Location: register.php?success=1");
-                exit;
-            } else {
-                $error = "db";
-            }
+            $apiError = strtolower((string) ($response['error'] ?? ''));
+            $error = strpos($apiError, 'email') !== false ? 'exists' : 'db';
         }
     }
 }
 ?>
-
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-<title>Registro PRO</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Registro</title>
 <link rel="stylesheet" href="css/estilos.css">
 </head>
 <body>
 
 <div class="container">
+    <h2>Registro</h2>
 
-<h2>Registro</h2>
+    <form method="POST">
+        <input name="nombre" placeholder="Nombre completo" value="<?= e($nombre) ?>" required>
+        <input name="correo" type="email" placeholder="Correo" value="<?= e($correo) ?>" required>
 
-<form method="POST">
+        <select name="perfil_id" required>
+            <option value="">Selecciona perfil</option>
+            <?php foreach ($perfiles as $perfil): ?>
+            <option value="<?= e((string) $perfil['id']) ?>" <?= (string) $perfilId === (string) $perfil['id'] ? 'selected' : '' ?>>
+                <?= e($perfil['codigo']) ?>
+            </option>
+            <?php endforeach; ?>
+        </select>
 
-<input name="dni" placeholder="DNI (8 dígitos)" required>
-<input name="correo" placeholder="Correo" required>
+        <select name="empresa_id" required>
+            <option value="">Selecciona empresa</option>
+            <?php foreach ($empresas as $empresa): ?>
+            <option value="<?= e((string) $empresa['id']) ?>" <?= (string) $empresaId === (string) $empresa['id'] ? 'selected' : '' ?>>
+                <?= e($empresa['nombre']) ?>
+            </option>
+            <?php endforeach; ?>
+        </select>
 
-<!-- PASSWORD -->
-<div class="input-group">
-<input type="password" name="password" id="password" placeholder="Contraseña" required>
-<span class="eye" id="togglePass">👁</span>
-</div>
+        <div class="input-group">
+            <input type="password" name="password" id="password" placeholder="Contrasena" required>
+            <span class="eye" id="togglePass">Ver</span>
+        </div>
 
-<!-- CONFIRM -->
-<div class="input-group">
-<input type="password" name="confirm" id="confirm" placeholder="Confirmar contraseña" required>
-<span class="eye" id="toggleConfirm">👁</span>
-</div>
+        <div class="input-group">
+            <input type="password" name="confirm" id="confirm" placeholder="Confirmar contrasena" required>
+            <span class="eye" id="toggleConfirm">Ver</span>
+        </div>
 
-<!-- ERROR ÚNICO -->
-<?php if (!empty($error)): ?>
-<div class="alert-error show">
+        <?php if ($error !== ''): ?>
+        <div class="alert-error show">
+            <?php
+            if ($error === 'nombre') echo 'El nombre es obligatorio';
+            elseif ($error === 'email') echo 'Correo invalido';
+            elseif ($error === 'password') echo 'Las contrasenas no coinciden';
+            elseif ($error === 'weak') echo 'Contrasena insegura';
+            elseif ($error === 'select') echo 'Selecciona perfil y empresa';
+            elseif ($error === 'exists') echo 'El correo ya esta registrado';
+            else echo 'Error al registrar contra el backend';
+            ?>
+        </div>
+        <?php endif; ?>
 
-<?php
-if ($error == "dni") echo "DNI debe tener 8 dígitos";
-elseif ($error == "email") echo "Correo inválido";
-elseif ($error == "password") echo "Las contraseñas no coinciden";
-elseif ($error == "weak") echo "Contraseña insegura";
-elseif ($error == "exists") echo "Usuario ya existe";
-elseif ($error == "db") echo "Error al registrar";
-?>
+        <?php if ($success !== ''): ?>
+        <div class="alert-success"><?= e($success) ?></div>
+        <?php endif; ?>
 
-</div>
-<?php endif; ?>
+        <div class="requisitos">
+            <div><span id="min" class="circulo"></span> 8 caracteres</div>
+            <div><span id="mayus" class="circulo"></span> Mayuscula</div>
+            <div><span id="minus" class="circulo"></span> Minuscula</div>
+            <div><span id="num" class="circulo"></span> Numero</div>
+            <div><span id="simbolo" class="circulo"></span> Simbolo</div>
+        </div>
 
-<!-- REQUISITOS -->
-<div class="requisitos">
-  <div><span id="min" class="circulo"></span> 8 caracteres</div>
-  <div><span id="mayus" class="circulo"></span> Mayúscula</div>
-  <div><span id="minus" class="circulo"></span> Minúscula</div>
-  <div><span id="num" class="circulo"></span> Número</div>
-  <div><span id="simbolo" class="circulo"></span> Símbolo</div>
-</div>
+        <div class="barra">
+            <div id="fuerza"></div>
+        </div>
 
-<!-- BARRA -->
-<div class="barra">
-  <div id="fuerza"></div>
-</div>
+        <p id="nivel"></p>
 
-<p id="nivel"></p>
+        <button id="btnRegistro" type="submit">Registrar</button>
+    </form>
 
-<button id="btnRegistro" type="submit">Registrar</button>
-
-</form>
-
-<!-- CHECK -->
-<div id="overlayCheck">
-  <div class="check">✔</div>
-  <p>¡Registrado correctamente!</p>
-</div>
-
+    <div class="links">
+        <a href="principal.php">Volver al panel</a>
+        <a href="login.php">Ir al login</a>
+    </div>
 </div>
 
 <script>
-const pass = document.getElementById("password");
-const confirm = document.getElementById("confirm");
-const btn = document.getElementById("btnRegistro");
-const barra = document.getElementById("fuerza");
-const nivel = document.getElementById("nivel");
+const pass = document.getElementById('password');
+const confirm = document.getElementById('confirm');
+const btn = document.getElementById('btnRegistro');
+const barra = document.getElementById('fuerza');
+const nivel = document.getElementById('nivel');
 
-// OJOS
-document.getElementById("togglePass").onclick = () => {
-  pass.type = pass.type === "password" ? "text" : "password";
+document.getElementById('togglePass').onclick = () => {
+  pass.type = pass.type === 'password' ? 'text' : 'password';
 };
 
-document.getElementById("toggleConfirm").onclick = () => {
-  confirm.type = confirm.type === "password" ? "text" : "password";
+document.getElementById('toggleConfirm').onclick = () => {
+  confirm.type = confirm.type === 'password' ? 'text' : 'password';
 };
 
-// VALIDACIÓN
 function validar() {
-
   let val = pass.value;
   let score = 0;
 
-  const min = document.getElementById("min");
-  const mayus = document.getElementById("mayus");
-  const minus = document.getElementById("minus");
-  const num = document.getElementById("num");
-  const simbolo = document.getElementById("simbolo");
+  const min = document.getElementById('min');
+  const mayus = document.getElementById('mayus');
+  const minus = document.getElementById('minus');
+  const num = document.getElementById('num');
+  const simbolo = document.getElementById('simbolo');
 
-  function check(cond, el){
-    if(cond){
-      el.classList.add("ok");
+  function check(cond, el) {
+    if (cond) {
+      el.classList.add('ok');
       score++;
     } else {
-      el.classList.remove("ok");
+      el.classList.remove('ok');
     }
   }
 
@@ -169,56 +179,38 @@ function validar() {
   check(/[\W]/.test(val), simbolo);
 
   let porcentaje = (score / 5) * 100;
-  barra.style.width = porcentaje + "%";
+  barra.style.width = porcentaje + '%';
 
   if (score <= 2) {
-    barra.style.background = "#ff4d4d";
-    nivel.textContent = "Débil";
+    barra.style.background = '#ff4d4d';
+    nivel.textContent = 'Debil';
   } else if (score <= 4) {
-    barra.style.background = "#ffa500";
-    nivel.textContent = "Media";
+    barra.style.background = '#ffa500';
+    nivel.textContent = 'Media';
   } else {
-    barra.style.background = "#00cc66";
-    nivel.textContent = "Muy segura";
+    barra.style.background = '#00cc66';
+    nivel.textContent = 'Muy segura';
   }
 }
 
-pass.addEventListener("keyup", validar);
-confirm.addEventListener("keyup", validar);
+pass.addEventListener('keyup', validar);
+confirm.addEventListener('keyup', validar);
 
-// SOLO VALIDACIÓN VISUAL (NO BLOQUEA CLICK)
-btn.addEventListener("click", function(e){
-
+btn.addEventListener('click', function(e) {
   if (pass.value !== confirm.value) {
-
     e.preventDefault();
 
-    const alerta = document.querySelector(".alert-error");
-
+    const alerta = document.querySelector('.alert-error');
     if (alerta) {
-      alerta.innerHTML = "Las contraseñas no coinciden";
-      alerta.classList.add("show");
+      alerta.innerHTML = 'Las contrasenas no coinciden';
+      alerta.classList.add('show');
     }
 
-    btn.classList.add("shake");
-    setTimeout(() => btn.classList.remove("shake"), 300);
+    btn.classList.add('shake');
+    setTimeout(() => btn.classList.remove('shake'), 300);
   }
 });
 </script>
-
-<?php if (isset($_GET['success'])): ?>
-<script>
-window.onload = () => {
-  const overlay = document.getElementById("overlayCheck");
-  overlay.classList.add("show");
-
-  setTimeout(() => {
-    overlay.classList.remove("show");
-    window.history.replaceState({}, document.title, "register.php");
-  }, 2500);
-};
-</script>
-<?php endif; ?>
 
 </body>
 </html>

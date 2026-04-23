@@ -1,4 +1,9 @@
 <?php
+session_start();
+require_once 'includes/auth.php';
+
+require_module('FIRMAR');
+
 ob_start();
 
 // Asegúrate de que estas rutas sean correctas
