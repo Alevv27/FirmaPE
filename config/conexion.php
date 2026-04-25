@@ -1,8 +1,12 @@
 <?php
-$conexion = new mysqli("localhost", "root", "", "sistema_login");
+$conexion = new mysqli(
+    "sql10.freesqldatabase.com",
+    "sql10824373",
+    "LVXmthUgxs",
+    "sql10824373"
+);
 
 if ($conexion->connect_error) {
-    die("Error de conexión");
+    die("Error de conexión: " . $conexion->connect_error);
 }
 ?>
-
