@@ -1,92 +1,112 @@
 <?php
 session_start();
-require_once 'includes/auth.php';
+include 'config/conexion.php';
 
-require_login();
-refresh_session_user();
+// 🔐 PROTECCIÓN
+if (!isset($_SESSION['user'])) {
+    header("Location: login.php");
+    exit();
+}
 
-$user = current_user();
-$mensaje = '';
-$error = '';
+$dni = $_SESSION['user'];
+$mensaje = "";
+$color_alerta = "#ff4d4d"; // Rojo por defecto para errores
 
-$nombre = $user['nombre'] ?? '';
-$correo = $user['email'] ?? '';
+// 🔍 OBTENER DATOS ACTUALES
+$stmt = $conexion->prepare("SELECT nombre, correo FROM usuarios WHERE dni=?");
+$stmt->bind_param("s", $dni);
+$stmt->execute();
+$res = $stmt->get_result();
+$user = $res->fetch_assoc();
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $nuevoNombre = trim($_POST['nombre'] ?? '');
-    $nuevoCorreo = strtolower(trim($_POST['correo'] ?? ''));
-    $nuevoPassword = $_POST['password'] ?? '';
+$nombre = $user['nombre'] ?? "";
+$correo = $user['correo'] ?? "";
 
-    if ($nuevoNombre === '' || $nuevoCorreo === '') {
-        $error = 'Nombre y correo son obligatorios.';
+// 💾 GUARDAR CAMBIOS (Solo correo)
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+
+    $nuevoCorreo = trim($_POST['correo']);
+
+    // 1. Verificar si el correo ya lo tiene OTRO usuario (que no sea yo)
+    $check = $conexion->prepare("SELECT id FROM usuarios WHERE correo=? AND dni != ?");
+    $check->bind_param("ss", $nuevoCorreo, $dni);
+    $check->execute();
+    $existe = $check->get_result();
+
+    if ($existe->num_rows > 0) {
+        $mensaje = "El correo ya está registrado por otro usuario";
+        $color_alerta = "#ff4d4d"; // Rojo
     } else {
-        $payload = [
-            'nombre' => $nuevoNombre,
-            'email' => $nuevoCorreo,
-        ];
-
-        if ($nuevoPassword !== '') {
-            $payload['password'] = $nuevoPassword;
-        }
-
-        $response = api_request('PATCH', '/usuarios/' . (int) $user['id'], $payload);
-
-        if ($response['ok']) {
-            $_SESSION['auth']['usuario'] = $response['data']['usuario'];
-            $user = current_user();
-            $nombre = $user['nombre'] ?? $nuevoNombre;
-            $correo = $user['email'] ?? $nuevoCorreo;
-            $mensaje = 'Datos actualizados correctamente.';
+        // 2. Actualizamos SOLO el correo
+        $stmt = $conexion->prepare("UPDATE usuarios SET correo=? WHERE dni=?");
+        $stmt->bind_param("ss", $nuevoCorreo, $dni);
+        
+        if ($stmt->execute()) {
+            $correo = $nuevoCorreo;
+            $mensaje = "Correo actualizado correctamente";
+            $color_alerta = "#00c853"; // Verde
         } else {
-            $error = $response['error'] ?: 'No se pudo actualizar el perfil.';
+            $mensaje = "Error al guardar los cambios";
+            $color_alerta = "#ff4d4d"; // Rojo
         }
     }
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mi perfil</title>
-<link rel="stylesheet" href="css/estilos.css">
+    <meta charset="UTF-8">
+    <title>Mi perfil</title>
+    <link rel="stylesheet" href="css/estilos.css">
+    <style>
+        .btn-volver {
+            display: inline-block;
+            margin-top: 20px;
+            text-decoration: none;
+            color: #4db8ff;
+            font-weight: bold;
+            font-size: 14px;
+            transition: 0.3s;
+        }
+        .btn-volver:hover {
+            color: #1a8cff;
+            text-decoration: underline;
+        }
+        /* Estilo para el campo que no se puede editar */
+        input[readonly] {
+            background-color: #f0f0f0;
+            cursor: not-allowed;
+            color: #888;
+        }
+    </style>
 </head>
 <body>
 
 <div class="container">
+
     <h2>Mi perfil</h2>
 
     <form method="POST">
-        <input type="text" name="nombre" placeholder="Nombre completo" value="<?= e($nombre) ?>" required>
-        <input type="email" name="correo" placeholder="Correo" value="<?= e($correo) ?>" required>
-        <input type="password" name="password" placeholder="Nueva contrasena (opcional)">
+        <label style="display:block; text-align:left; font-size:12px; color:#666; margin: 0 0 5px 10px;">Nombre Completo (No editable)</label>
+        <input type="text" value="<?= htmlspecialchars($nombre) ?>" readonly>
 
-        <div class="perfil-resumen">
-            <div><strong>Perfil:</strong> <?= e($user['perfil'] ?? '') ?></div>
-            <div><strong>Empresa ID:</strong> <?= e((string) ($user['empresaId'] ?? '')) ?></div>
-            <div><strong>Estado:</strong> <?= !empty($user['activo']) ? 'Activo' : 'Inactivo' ?></div>
-        </div>
+        <label style="display:block; text-align:left; font-size:12px; color:#666; margin: 10px 0 5px 10px;">Correo Electrónico</label>
+        <input type="email" name="correo" placeholder="Correo" value="<?= htmlspecialchars($correo) ?>" required>
 
         <button type="submit">Guardar cambios</button>
     </form>
 
-    <?php if ($error !== ''): ?>
-    <div class="alert-error show"><?= e($error) ?></div>
+    <?php if ($mensaje): ?>
+        <div class="alert-error show" style="background: <?= $color_alerta ?>; color: white; border: none;">
+            <?= $mensaje ?>
+        </div>
     <?php endif; ?>
 
-    <?php if ($mensaje !== ''): ?>
-    <div class="alert-success"><?= e($mensaje) ?></div>
-    <?php endif; ?>
-
-    <div class="modulos-box">
-        <h3>Modulos habilitados</h3>
-        <?php foreach (current_modules() as $modulo): ?>
-        <span class="module-pill"><?= e($modulo['nombre'] ?? $modulo['codigo'] ?? '') ?></span>
-        <?php endforeach; ?>
+    <div style="margin-top: 10px;">
+        <a href="principal.php" class="btn-volver">⬅ Volver al panel</a>
     </div>
 
-    <br>
-    <a href="principal.php">Volver al panel</a>
 </div>
 
 </body>

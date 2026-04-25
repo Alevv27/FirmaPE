@@ -1,0 +1,23 @@
+# Carpetas innecesarias
+uploads/
+temp/
+archivos_pendientes/
+
+# Archivos temporales
+*.log
+*.tmp
+
+# Imágenes generadas
+*.png
+*.jpg
+*.jpeg
+
+# PDFs generados
+*.pdf
+
+# Configuración local
+nbproject/private/
+
+# Sistema
+.DS_Store
+Thumbs.db
