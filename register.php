@@ -215,7 +215,7 @@ window.onload = () => {
     overlay.classList.add("show");
 
     setTimeout(() => {
-        window.location.href = "login.php";
+        window.location.href = "index.php";
     }, 2500);
 };
 </script>
