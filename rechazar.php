@@ -1,35 +1,31 @@
 <?php
 session_start();
-include 'config/conexion.php';
+require_once 'includes/auth.php';
+require_module('FIRMAR');
 
-if (isset($_GET['id']) && isset($_SESSION['user'])) {
-    $id_doc = $_GET['id'];
-    $dni_gerente = $_SESSION['user'];
+if (isset($_GET['id']) && $conexion) {
+    $id_doc = (int) $_GET['id'];
 
-    // 1. Obtener datos del documento y nombre de quien rechaza
-    $query = $conexion->query("SELECT d.id_remitente, d.nombre_archivo, u.nombre 
-                               FROM documentos d 
-                               JOIN usuarios u ON u.dni = '$dni_gerente' 
-                               WHERE d.id = '$id_doc'");
-    $datos = $query->fetch_assoc();
+    $stmt = $conexion->prepare("SELECT id_remitente, nombre_archivo FROM documentos WHERE id = ?");
+    $stmt->bind_param("i", $id_doc);
+    $stmt->execute();
+    $datos = $stmt->get_result()->fetch_assoc();
 
     if ($datos) {
         $id_trabajador = $datos['id_remitente'];
         $nombre_archivo = $datos['nombre_archivo'];
-        $nombre_gerente = $datos['nombre'] ?? $dni_gerente;
+        $nombre_firmante = current_user()['nombre'] ?? 'Un firmante';
 
-        // 2. Cambiar estado a Rechazado
-        $conexion->query("UPDATE documentos SET estado = 'Rechazado' WHERE id = '$id_doc'");
+        $stmt_estado = $conexion->prepare("UPDATE documentos SET estado = 'Rechazado' WHERE id = ?");
+        $stmt_estado->bind_param("i", $id_doc);
+        $stmt_estado->execute();
 
-        // 3. Insertar notificación para el trabajador (CON NEGRITA)
-        $mensaje = "<b>❌ $nombre_gerente rechazó tu documento:</b> $nombre_archivo";
-        
-        $stmt = $conexion->prepare("INSERT INTO notificaciones (id_usuario, mensaje) VALUES (?, ?)");
-        $stmt->bind_param("ss", $id_trabajador, $mensaje);
-        $stmt->execute();
+        $mensaje = "<b>$nombre_firmante rechazo tu documento:</b> $nombre_archivo";
+        $stmt_notif = $conexion->prepare("INSERT INTO notificaciones (id_usuario, mensaje) VALUES (?, ?)");
+        $stmt_notif->bind_param("ss", $id_trabajador, $mensaje);
+        $stmt_notif->execute();
     }
 }
 
-// Redirigir de vuelta a gestión
 header("Location: gestion.php");
-exit();
+exit;

@@ -1,10 +1,12 @@
 <?php
 ob_start();
+session_start();
 
 // Asegúrate de que estas rutas sean correctas
 require __DIR__ . '/fpdf/fpdf.php';
 require __DIR__ . '/fpdi/src/autoload.php';
-include __DIR__ . '/config/conexion.php'; 
+require_once __DIR__ . '/includes/auth.php';
+require_module('FIRMAR');
 
 use setasign\Fpdi\Fpdi;
 
@@ -67,16 +69,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // B. --- NUEVO: ENVIAR NOTIFICACIÓN AL DUEÑO DEL DOCUMENTO ---
             // Buscamos el nombre de quien firma (usuario actual) y el id de quien lo envió
-            $query_info = $conexion->query("SELECT d.id_remitente, d.nombre_archivo, u.nombre 
-                                            FROM documentos d 
-                                            JOIN usuarios u ON u.dni = d.id_destinatario 
-                                            WHERE d.id = '$id_doc'");
-            $info = $query_info->fetch_assoc();
+            $stmt_info = $conexion->prepare("SELECT id_remitente, nombre_archivo FROM documentos WHERE id = ?");
+            $stmt_info->bind_param("i", $id_doc);
+            $stmt_info->execute();
+            $info = $stmt_info->get_result()->fetch_assoc();
 
             if ($info) {
                 $id_remitente = $info['id_remitente'];
                 $nombre_archivo = $info['nombre_archivo'];
-                $nombre_firmante = $info['nombre'] ?? "Un usuario";
+                $nombre_firmante = current_user()['nombre'] ?? "Un usuario";
 
                 // Mensaje con negrita
                 $mensaje_notif = "<b>✅ $nombre_firmante firmó tu documento:</b> $nombre_archivo";

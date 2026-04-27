@@ -1,11 +1,7 @@
 <?php
 session_start();
-include 'config/conexion.php'; 
-
-if (!isset($_SESSION['user'])) {
-    header("Location: login.php");
-    exit();
-}
+require_once 'includes/auth.php';
+require_module('FIRMAR');
 
 $archivo_automatico = isset($_GET['archivo']) ? $_GET['archivo'] : "";
 $id_doc = isset($_GET['id_doc']) ? $_GET['id_doc'] : "";

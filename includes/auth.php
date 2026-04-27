@@ -24,10 +24,21 @@ function current_permissions(): array
     return $_SESSION['auth']['permisos'] ?? [];
 }
 
+function current_profile(): string
+{
+    return strtoupper((string) ($_SESSION['auth']['usuario']['perfil'] ?? ''));
+}
+
+function has_permission(string $permiso): bool
+{
+    return (bool) (current_permissions()[$permiso] ?? false);
+}
+
 function has_module(string $codigo): bool
 {
+    $codigo = strtoupper($codigo);
     foreach (current_modules() as $modulo) {
-        if (($modulo['codigo'] ?? '') === $codigo) {
+        if (strtoupper((string) ($modulo['codigo'] ?? '')) === $codigo) {
             return true;
         }
     }
@@ -38,7 +49,17 @@ function has_module(string $codigo): bool
 function require_login(): void
 {
     if (!isset($_SESSION['auth']['usuario']['id'])) {
-        header('Location: login.php');
+        header('Location: index.php');
+        exit;
+    }
+}
+
+function require_admin(): void
+{
+    require_login();
+
+    if (!has_module('ADMINISTRACION')) {
+        header('Location: ../principal.php?error=modulo');
         exit;
     }
 }

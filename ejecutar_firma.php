@@ -1,6 +1,7 @@
 <?php
 session_start();
-include 'config/conexion.php'; 
+require_once 'includes/auth.php';
+require_module('FIRMAR');
 
 // Ruta base dinámica (funciona en local y Render)
 $base_path = __DIR__ . "/";
@@ -23,7 +24,6 @@ use setasign\Fpdi\TcpdfFpdi;
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && !empty($_POST['nombre_temp'])) {
     
-    $dni_usuario = $_SESSION['user'] ?? '00000000';
     $id_doc = $_POST['id_doc'] ?? null;
     $ruta_recibida = $_POST['nombre_temp'];
 
@@ -41,19 +41,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && !empty($_POST['nombre_temp'])) {
         die("Error: El archivo PDF no existe en: " . $archivo_final);
     }
 
-    // 4. Obtener datos del usuario
-    $nombre_firmante = "USUARIO DEL SISTEMA";
-
-    if (isset($conexion)) {
-        $stmt = $conexion->prepare("SELECT nombre FROM usuarios WHERE dni = ?");
-        $stmt->bind_param("s", $dni_usuario);
-        $stmt->execute();
-        $res = $stmt->get_result();
-
-        if ($user = $res->fetch_assoc()) {
-            $nombre_firmante = strtoupper($user['nombre']);
-        }
-    }
+    // 4. Obtener datos del usuario desde la sesion del backend Flask
+    $nombre_firmante = strtoupper(current_user()['nombre'] ?? 'USUARIO DEL SISTEMA');
 
     // 5. PROCESO DE FIRMA
     try {
@@ -88,7 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && !empty($_POST['nombre_temp'])) {
                 $pdf->SetXY($x + 4, $y + 11);
 
                 $txt = "FIRMANTE: " . $nombre_firmante . "\n" .
-                       "DNI: " . $dni_usuario . "\n" .
+                       "EMAIL: " . (current_user()['email'] ?? '') . "\n" .
                        "FECHA: " . date('d/m/Y H:i:s') . "\n" .
                        "MOTIVO: Aprobación de documento\n" .
                        "UBICACIÓN: LIMA, PERÚ";

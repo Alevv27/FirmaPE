@@ -1,4 +1,8 @@
 <?php
+session_start();
+require_once 'includes/auth.php';
+require_module('FIRMAR');
+
 // Detectamos si viene un archivo desde la tabla de gestión
 $archivo_pre_cargado = isset($_GET['archivo_existente']) ? $_GET['archivo_existente'] : '';
 $id_doc = isset($_GET['id_doc']) ? $_GET['id_doc'] : '';
