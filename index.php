@@ -120,7 +120,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <div class="links">
         <a href="register.php">Crear cuenta</a>
-        <a href="recuperar.php">Olvidaste tu contrasena?</a>
     </div>
 </div>
 

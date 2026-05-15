@@ -7,7 +7,8 @@ $usuario = current_user();
 $usuarioId = (int) $usuario['id'];
 $perfil = current_profile();
 $canUpload = in_array($perfil, ['GESTOR', 'ADMIN'], true);
-$mensaje = 'El modulo de documentos todavia no esta disponible en el backend Flask actual.';
+$mensaje = '';
+$tipoMensaje = '';
 
 $usuariosResponse = api_request('GET', '/usuarios');
 $usuariosApi = $usuariosResponse['ok'] ? ($usuariosResponse['data']['usuarios'] ?? []) : [];
@@ -26,7 +27,54 @@ $estado_f = $_GET['estado_f'] ?? '';
 $remitente_f = trim($_GET['remitente_f'] ?? '');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['pdf_documento']) && $canUpload) {
-    $mensaje = 'Para cargar documentos falta crear endpoints de documentos en el backend Flask.';
+    $firmanteId = (int) ($_POST['firmante_id'] ?? 0);
+    $archivo = $_FILES['pdf_documento'];
+
+    if ($firmanteId <= 0) {
+        $mensaje = 'Seleccione un firmante.';
+        $tipoMensaje = 'error';
+    } elseif (($archivo['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+        $mensaje = 'No se pudo leer el PDF seleccionado.';
+        $tipoMensaje = 'error';
+    } else {
+        $nombreOriginal = basename((string) $archivo['name']);
+        $extension = strtolower(pathinfo($nombreOriginal, PATHINFO_EXTENSION));
+
+        if ($extension !== 'pdf') {
+            $mensaje = 'Solo se permiten archivos PDF.';
+            $tipoMensaje = 'error';
+        } else {
+            $uploadDir = __DIR__ . DIRECTORY_SEPARATOR . 'uploads';
+            if (!is_dir($uploadDir)) {
+                mkdir($uploadDir, 0775, true);
+            }
+
+            $nombreSeguro = preg_replace('/[^A-Za-z0-9._-]/', '_', $nombreOriginal);
+            $nombreArchivo = date('YmdHis') . '_' . $nombreSeguro;
+            $rutaDestino = $uploadDir . DIRECTORY_SEPARATOR . $nombreArchivo;
+            $rutaPublica = 'uploads/' . $nombreArchivo;
+
+            if (!move_uploaded_file($archivo['tmp_name'], $rutaDestino)) {
+                $mensaje = 'No se pudo guardar el PDF en el front.';
+                $tipoMensaje = 'error';
+            } else {
+                $response = api_request('POST', '/procesos', [
+                    'firmante_id' => $firmanteId,
+                    'creador_id' => $usuarioId,
+                    'nombre_archivo' => $nombreOriginal,
+                    'ruta_archivo' => $rutaPublica,
+                ]);
+
+                if ($response['ok']) {
+                    $mensaje = 'Proceso creado. Se envio la notificacion al firmante.';
+                    $tipoMensaje = 'success';
+                } else {
+                    $mensaje = $response['error'] ?: 'No se pudo crear el proceso de firma.';
+                    $tipoMensaje = 'error';
+                }
+            }
+        }
+    }
 }
 
 $docs = [];
@@ -62,7 +110,9 @@ $docs = [];
         .btn-elec { background: #4db8ff; }
         .btn-digi { background: #6c5ce7; }
         .btn-rechazar { background: #ff4d4d; }
-        .alert { background:#fee2e2; color:#991b1b; padding:12px; border-radius:8px; margin-bottom:15px; font-weight:700; }
+        .alert { padding:12px; border-radius:8px; margin-bottom:15px; font-weight:700; }
+        .alert-error { background:#fee2e2; color:#991b1b; }
+        .alert-success { background:#d1fae5; color:#065f46; }
     </style>
 </head>
 <body>
@@ -75,7 +125,9 @@ $docs = [];
 </header>
 
 <div class="container">
-    <?php if ($mensaje): ?><div class="alert"><?= e($mensaje) ?></div><?php endif; ?>
+    <?php if ($mensaje): ?>
+        <div class="alert <?= $tipoMensaje === 'success' ? 'alert-success' : 'alert-error' ?>"><?= e($mensaje) ?></div>
+    <?php endif; ?>
 
     <?php if ($canUpload): ?>
     <div class="card">
