@@ -45,9 +45,10 @@ if ($tipoFirma !== 'servidor') {
         die("Error: No se ha dibujado o subido la firma.");
     }
 
+    $imgExt = str_starts_with($base64, 'data:image/jpeg') || str_starts_with($base64, 'data:image/jpg') ? 'jpg' : 'png';
     $imgData = preg_replace('#^data:image/\w+;base64,#i', '', $base64);
     $imgData = str_replace(' ', '+', $imgData);
-    $imgFile = __DIR__ . "/temp_firma_" . time() . ".png";
+    $imgFile = __DIR__ . "/temp_firma_" . time() . "." . $imgExt;
     file_put_contents($imgFile, base64_decode($imgData));
 }
 

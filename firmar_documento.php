@@ -62,6 +62,8 @@ $esta_listo = !empty($archivo_pre_cargado) ? 'true' : 'false';
         .btn-nav { background: #f1f5f9; color: #475569; margin-bottom: 0; }
         .btn-mode { background: #eef2ff; color: #4338ca; border: 1px solid #c7d2fe; }
         .btn-mode.active { background: var(--accent); color: white; border-color: var(--accent); }
+        .submode { display: none; }
+        .submode.active { display: block; }
         .btn-small { padding: 10px; font-size: 12px; border-radius: 9px; }
         .nav-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
         .info-carga { background: #ecfdf5; border: 1px solid #a7f3d0; padding: 12px; border-radius: 12px; margin-bottom: 16px; font-size: 12px; color: #065f46; display: flex; align-items: center; gap: 8px; }
@@ -135,19 +137,25 @@ $esta_listo = !empty($archivo_pre_cargado) ? 'true' : 'false';
                 <button type="button" id="modoNormalBtn" class="btn btn-small btn-mode active" onclick="cambiarModoFirma('normal')">MANUSCRITA / IMAGEN</button>
                 <button type="button" id="modoServidorBtn" class="btn btn-small btn-mode" onclick="cambiarModoFirma('servidor')">FIRMA SERVIDOR</button>
             </div>
-            <div>
-                <div class="field-label">Firma manuscrita</div>
-                <canvas id="canvasFirma" width="300" height="120"></canvas>
+            <div id="normalOptions">
+                <div class="tool-row">
+                    <button type="button" id="modoDibujoBtn" class="btn btn-small btn-mode active" onclick="cambiarSubmodoNormal('dibujo')">DIBUJAR</button>
+                    <button type="button" id="modoImagenBtn" class="btn btn-small btn-mode" onclick="cambiarSubmodoNormal('imagen')">SUBIR IMAGEN</button>
+                </div>
+                <div id="submodoDibujo" class="submode active">
+                    <div class="field-label">Firma manuscrita</div>
+                    <canvas id="canvasFirma" width="300" height="120"></canvas>
+                    <div class="tool-row" style="margin-top:10px;">
+                        <button type="button" class="btn btn-small btn-muted" onclick="limpiarDibujo()">LIMPIAR</button>
+                        <button type="button" class="btn btn-small btn-muted" onclick="usarDibujo()">USAR DIBUJO</button>
+                    </div>
+                </div>
+                <div id="submodoImagen" class="submode">
+                    <div class="field-label">Imagen de firma</div>
+                    <input type="file" id="inputFirmaImagen" accept="image/*" style="width:100%;">
+                    <button type="button" class="btn btn-small btn-upload" style="margin-top:10px;" onclick="usarImagenFirma()">USAR IMAGEN</button>
+                </div>
             </div>
-            <div class="tool-row">
-                <button type="button" class="btn btn-small btn-muted" onclick="limpiarDibujo()">LIMPIAR</button>
-                <button type="button" class="btn btn-small btn-muted" onclick="usarDibujo()">USAR DIBUJO</button>
-            </div>
-            <div>
-                <div class="field-label">Imagen de firma</div>
-                <input type="file" id="inputFirmaImagen" accept="image/*" style="width:100%;">
-            </div>
-            <button type="button" class="btn btn-small btn-upload" onclick="usarImagenFirma()">USAR IMAGEN</button>
             <div>
                 <div class="field-label">Tamaño del estampado</div>
                 <input class="range" type="range" id="firmaSize" min="80" max="260" value="150">
@@ -210,6 +218,7 @@ let paginaActual = 1;
 let paginasTotal = 1;
 let firmaLista = false;
 let modoFirma = 'normal';
+let submodoNormal = 'dibujo';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
@@ -322,7 +331,7 @@ function limpiarDibujo() {
 
 function usarDibujo() {
     if (!listo) return Swal.fire('Atencion', 'Primero cargue el PDF.', 'warning');
-    colocarFirma(canvasFirma.toDataURL('image/png'));
+    colocarFirma(canvasConFondoBlanco(canvasFirma));
 }
 
 function usarImagenFirma() {
@@ -330,8 +339,36 @@ function usarImagenFirma() {
     const file = document.getElementById('inputFirmaImagen').files[0];
     if (!file) return Swal.fire('Atencion', 'Seleccione una imagen de firma.', 'warning');
     const reader = new FileReader();
-    reader.onload = (e) => colocarFirma(e.target.result);
+    reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => colocarFirma(imagenConFondoBlanco(img));
+        img.src = e.target.result;
+    };
     reader.readAsDataURL(file);
+}
+
+function canvasConFondoBlanco(sourceCanvas) {
+    const out = document.createElement('canvas');
+    out.width = sourceCanvas.width;
+    out.height = sourceCanvas.height;
+    const ctx = out.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, out.width, out.height);
+    ctx.drawImage(sourceCanvas, 0, 0);
+    return out.toDataURL('image/jpeg', 0.95);
+}
+
+function imagenConFondoBlanco(img) {
+    const maxW = 900;
+    const ratio = Math.min(1, maxW / img.width);
+    const out = document.createElement('canvas');
+    out.width = Math.max(1, Math.round(img.width * ratio));
+    out.height = Math.max(1, Math.round(img.height * ratio));
+    const ctx = out.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, out.width, out.height);
+    ctx.drawImage(img, 0, 0, out.width, out.height);
+    return out.toDataURL('image/jpeg', 0.95);
 }
 
 function colocarFirma(src) {
@@ -357,6 +394,7 @@ function cambiarModoFirma(modo) {
     document.getElementById('modoServidorBtn').classList.toggle('active', modo === 'servidor');
 
     if (modo === 'servidor') {
+        document.getElementById('normalOptions').style.display = 'none';
         document.getElementById('firmaBase64').value = '';
         firmaPreview.style.display = 'none';
         document.getElementById('serverStamp').style.display = 'block';
@@ -367,11 +405,21 @@ function cambiarModoFirma(modo) {
         return;
     }
 
+    document.getElementById('normalOptions').style.display = 'block';
     document.getElementById('serverStamp').style.display = 'none';
     firmaPreview.style.display = 'block';
     if (!document.getElementById('firmaBase64').value) {
         quitarFirma();
     }
+}
+
+function cambiarSubmodoNormal(submodo) {
+    submodoNormal = submodo;
+    document.getElementById('modoDibujoBtn').classList.toggle('active', submodo === 'dibujo');
+    document.getElementById('modoImagenBtn').classList.toggle('active', submodo === 'imagen');
+    document.getElementById('submodoDibujo').classList.toggle('active', submodo === 'dibujo');
+    document.getElementById('submodoImagen').classList.toggle('active', submodo === 'imagen');
+    quitarFirma();
 }
 
 function posicionarFirmaInicial() {
