@@ -20,6 +20,7 @@ if ($token !== '') {
     }
 } else {
     require_module('FIRMAR');
+    require_profile('FIRMANTE', 'ADMIN');
     $archivo_pre_cargado = isset($_GET['archivo_existente']) ? $_GET['archivo_existente'] : '';
     $id_doc = isset($_GET['id_doc']) ? $_GET['id_doc'] : '';
 }

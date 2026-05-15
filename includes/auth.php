@@ -74,6 +74,17 @@ function require_module(string $codigo): void
     }
 }
 
+function require_profile(string ...$perfiles): void
+{
+    require_login();
+
+    $permitidos = array_map('strtoupper', $perfiles);
+    if (!in_array(current_profile(), $permitidos, true)) {
+        header('Location: principal.php?error=modulo');
+        exit;
+    }
+}
+
 function refresh_session_user(): bool
 {
     $user = current_user();

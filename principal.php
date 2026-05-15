@@ -96,15 +96,27 @@ $badgeClass = [
 <?php endif; ?>
 
 <main class="dashboard-container">
-    <?php if (has_module('GESTION')): ?>
+    <?php if (has_module('GESTION') && in_array($perfil, ['GESTOR', 'ADMIN'], true)): ?>
         <div class="card-moderna" onclick="location.href='gestion.php'">
             <span class="icon">&#128194;</span>
             <h3>Gestion de archivos</h3>
         </div>
     <?php endif; ?>
 
-    <?php if (has_module('FIRMAR')): ?>
-        <div class="card-moderna" onclick="location.href='firmar.php'">
+    <?php if (has_module('FIRMAR') && $perfil === 'FIRMANTE'): ?>
+        <div class="card-moderna" onclick="location.href='firmante_documentos.php'">
+            <span class="icon">&#9997;</span>
+            <h3>Firmar Documentos</h3>
+        </div>
+
+        <div class="card-moderna" onclick="location.href='firmar_documento.php'">
+            <span class="icon">&#128395;</span>
+            <h3>Firma Digital</h3>
+        </div>
+    <?php endif; ?>
+
+    <?php if (has_module('FIRMAR') && $perfil === 'ADMIN'): ?>
+        <div class="card-moderna" onclick="location.href='firmante_documentos.php'">
             <span class="icon">&#9997;</span>
             <h3>Firmar Documentos</h3>
         </div>
