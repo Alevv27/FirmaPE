@@ -182,7 +182,8 @@ function query_link(array $params): string
                         <td><?= e($fechaTs ? date('d/m/Y', $fechaTs) : '') ?></td>
                         <?php if ($perfil === 'ADMIN'): ?><td><?= e($fechaTs ? date('H:i:s', $fechaTs) : '') ?></td><?php endif; ?>
                         <td>
-                            <strong><?= e($p['nombre_archivo'] ?? 'Documento') ?></strong><br>
+                            <strong><?= e($p['nombre_proceso'] ?: ($p['nombre_archivo'] ?? 'Documento')) ?></strong><br>
+                            <?php if (!empty($p['descripcion'])): ?><small><?= e($p['descripcion']) ?></small><br><?php endif; ?>
                             <small><?= e($p['ruta_archivo'] ?? '') ?></small>
                         </td>
                         <td><?= e($creador) ?></td>

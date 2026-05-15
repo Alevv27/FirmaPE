@@ -79,7 +79,7 @@ try {
         $realW = max(25, min($realW, $size['width'] * 0.75));
 
         if ($tipoFirma === 'servidor') {
-            $realH = max(28, $realW * 0.42);
+            $realH = max(42, $realW * 0.62);
             if ($realX + $realW > $size['width']) {
                 $realX = $size['width'] - $realW;
             }
@@ -96,20 +96,24 @@ try {
             $pdf->SetLineWidth(0.6);
             $pdf->Rect($realX, $realY, $realW, $realH, 'DF');
 
+            $fontTitle = max(6, min(9, $realW / 17));
+            $fontBody = max(5, min(7, $realW / 21));
+            $lineH = max(2.8, $fontBody * 0.55);
+
             $pdf->SetTextColor(108, 92, 231);
-            $pdf->SetFont('helvetica', 'B', 8);
+            $pdf->SetFont('helvetica', 'B', $fontTitle);
             $pdf->SetXY($realX, $realY + 3);
-            $pdf->Cell($realW, 4, 'FIRMADO ELECTRONICAMENTE', 0, 1, 'C');
+            $pdf->MultiCell($realW, 4, 'FIRMADO ELECTRONICAMENTE', 0, 'C');
 
             $pdf->SetTextColor(30, 41, 59);
-            $pdf->SetFont('helvetica', '', 7);
-            $pdf->SetXY($realX + 4, $realY + 10);
+            $pdf->SetFont('helvetica', '', $fontBody);
+            $pdf->SetXY($realX + 4, $realY + 12);
             $txt = "FIRMANTE: " . $nombre . "\n" .
                 "EMAIL: " . $email . "\n" .
                 "FECHA: " . date('d/m/Y H:i:s') . "\n" .
                 "MOTIVO: Aprobacion de documento\n" .
                 "UBICACION: LIMA, PERU";
-            $pdf->MultiCell($realW - 8, 3.5, $txt, 0, 'L');
+            $pdf->MultiCell($realW - 8, $lineH, $txt, 0, 'L');
         } else {
             if ($realX + $realW > $size['width']) {
                 $realX = $size['width'] - $realW;

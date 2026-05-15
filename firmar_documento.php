@@ -6,6 +6,7 @@ $token = $_GET['token'] ?? '';
 $error_token = '';
 $archivo_pre_cargado = '';
 $id_doc = '';
+$firma_config = ['pagina' => 1, 'x' => null, 'y' => null, 'w' => null];
 
 if ($token !== '') {
     $tokenResponse = api_request('GET', '/firma/token/' . rawurlencode($token));
@@ -15,6 +16,7 @@ if ($token !== '') {
         $documento = $dataToken['documento'] ?? [];
         $archivo_pre_cargado = (string) ($documento['rutaArchivo'] ?? '');
         $id_doc = (string) ($dataToken['procesoId'] ?? '');
+        $firma_config = $documento['firma'] ?? $firma_config;
     } else {
         $error_token = $tokenResponse['error'] ?: 'El enlace de firma no es valido.';
     }
@@ -94,8 +96,8 @@ $esta_listo = !empty($archivo_pre_cargado) ? 'true' : 'false';
         #pdfCanvas { display: none; border: 1px solid #cbd5e1; background: white; }
         #firmaBox { position: absolute; left: 40px; top: 40px; width: 150px; display: none; cursor: move; z-index: 10; }
         #firmaPreview { width: 100%; display: block; filter: contrast(1.15) brightness(1.05); }
-        #serverStamp { display: none; width: 100%; background: #f8fafc; border: 2px solid #6c5ce7; border-radius: 8px; color: #1e293b; padding: 10px; line-height: 1.25; font-size: 11px; }
-        #serverStamp strong { display: block; color: #6c5ce7; text-align: center; font-size: 13px; margin-bottom: 7px; }
+        #serverStamp { display: none; width: 100%; background: #f8fafc; border: 2px solid #6c5ce7; border-radius: 8px; color: #1e293b; padding: 10px; line-height: 1.15; font-size: 10px; overflow-wrap: anywhere; word-break: break-word; white-space: normal; }
+        #serverStamp strong { display: block; color: #6c5ce7; text-align: center; font-size: 12px; margin-bottom: 7px; overflow-wrap: anywhere; }
         .firma-remove { position: absolute; right: -10px; top: -10px; width: 22px; height: 22px; border-radius: 999px; background: #ef4444; color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; cursor: pointer; border: 2px solid white; line-height: 1; }
         .no-preview { color: #94a3b8; font-weight: 600; text-align: center; font-size: 15px; line-height: 1.4; }
     </style>
@@ -214,6 +216,7 @@ $esta_listo = !empty($archivo_pre_cargado) ? 'true' : 'false';
 <script>
 let listo = <?= $esta_listo ?>;
 const rutaArchivo = <?= json_encode($archivo_pre_cargado, JSON_UNESCAPED_SLASHES) ?>;
+const firmaConfig = <?= json_encode($firma_config, JSON_UNESCAPED_SLASHES) ?>;
 let pdfDoc = null;
 let paginaActual = 1;
 let paginasTotal = 1;
@@ -273,7 +276,8 @@ async function cargarPdf(url) {
     try {
         pdfDoc = await pdfjsLib.getDocument(url).promise;
         paginasTotal = pdfDoc.numPages;
-        paginaActual = 1;
+        paginaActual = Number(firmaConfig.pagina || 1);
+        if (paginaActual < 1 || paginaActual > paginasTotal) paginaActual = 1;
         document.getElementById('paginasTotal').textContent = paginasTotal;
         await renderPagina();
         listo = true;
@@ -425,8 +429,15 @@ function cambiarSubmodoNormal(submodo) {
 
 function posicionarFirmaInicial() {
     const rect = pdfCanvas.getBoundingClientRect();
-    firmaBox.style.left = Math.max(20, (rect.width / 2) - (firmaBox.offsetWidth / 2)) + 'px';
-    firmaBox.style.top = Math.max(20, rect.height - 120) + 'px';
+    if (firmaConfig.x !== null && firmaConfig.y !== null) {
+        const w = firmaConfig.w !== null ? Math.max(80, Number(firmaConfig.w) * rect.width) : firmaBox.offsetWidth;
+        firmaBox.style.width = w + 'px';
+        firmaBox.style.left = Math.max(0, Math.min(Number(firmaConfig.x) * rect.width, rect.width - firmaBox.offsetWidth)) + 'px';
+        firmaBox.style.top = Math.max(0, Math.min(Number(firmaConfig.y) * rect.height, rect.height - firmaBox.offsetHeight)) + 'px';
+    } else {
+        firmaBox.style.left = Math.max(20, (rect.width / 2) - (firmaBox.offsetWidth / 2)) + 'px';
+        firmaBox.style.top = Math.max(20, rect.height - 120) + 'px';
+    }
     actualizarCoordenadas();
 }
 
