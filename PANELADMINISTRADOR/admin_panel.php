@@ -17,14 +17,6 @@ if (isset($_GET['eliminar'])) {
 $usuariosResponse = api_request('GET', '/usuarios');
 $usuarios = $usuariosResponse['ok'] ? ($usuariosResponse['data']['usuarios'] ?? []) : [];
 $totalUsers = count($usuarios);
-
-$totalDocsPend = 0;
-if ($conexion) {
-    $res = $conexion->query("SELECT COUNT(*) AS total FROM documentos WHERE estado = 'Pendiente'");
-    if ($res) {
-        $totalDocsPend = (int) ($res->fetch_assoc()['total'] ?? 0);
-    }
-}
 ?>
 
 <!DOCTYPE html>
@@ -69,7 +61,6 @@ if ($conexion) {
 
         <div class="stats">
             <div class="stat-card"><label>USUARIOS</label><p style="font-size:36px; font-weight:800; margin:5px 0;"><?= $totalUsers ?></p></div>
-            <div class="stat-card"><label>PENDIENTES</label><p style="font-size:36px; font-weight:800; margin:5px 0; color:var(--accent);"><?= $totalDocsPend ?></p></div>
             <div class="stat-card"><label>BACKEND</label><p style="font-size:13px; font-weight:700; color:#10b981; margin-top:20px;"><?= e(api_base_url()) ?></p></div>
         </div>
 

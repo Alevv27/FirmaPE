@@ -7,7 +7,7 @@ $usuario = current_user();
 $usuarioId = (int) $usuario['id'];
 $perfil = current_profile();
 $canUpload = in_array($perfil, ['GESTOR', 'ADMIN'], true);
-$mensaje = '';
+$mensaje = 'El modulo de documentos todavia no esta disponible en el backend Flask actual.';
 
 $usuariosResponse = api_request('GET', '/usuarios');
 $usuariosApi = $usuariosResponse['ok'] ? ($usuariosResponse['data']['usuarios'] ?? []) : [];
@@ -26,82 +26,10 @@ $estado_f = $_GET['estado_f'] ?? '';
 $remitente_f = trim($_GET['remitente_f'] ?? '');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['pdf_documento']) && $canUpload) {
-    $destinatario = (int) ($_POST['firmante_id'] ?? 0);
-    $nombre_archivo = basename($_FILES['pdf_documento']['name'] ?? '');
-    $ruta_temporal = $_FILES['pdf_documento']['tmp_name'] ?? '';
-
-    if ($destinatario <= 0 || $nombre_archivo === '') {
-        $mensaje = 'Selecciona firmante y documento.';
-    } elseif (!$conexion) {
-        $mensaje = 'No hay conexion disponible para documentos.';
-    } else {
-        $directorio = 'documentos/';
-        if (!is_dir($directorio)) {
-            mkdir($directorio, 0777, true);
-        }
-        $ruta_final = $directorio . time() . '_' . preg_replace('/[^A-Za-z0-9._-]/', '_', $nombre_archivo);
-
-        if (move_uploaded_file($ruta_temporal, $ruta_final)) {
-            $stmt = $conexion->prepare("INSERT INTO documentos (id_remitente, id_destinatario, nombre_archivo, ruta_archivo, estado, fecha_creacion) VALUES (?, ?, ?, ?, 'Pendiente', NOW())");
-            $remitenteStr = (string) $usuarioId;
-            $destinatarioStr = (string) $destinatario;
-            $stmt->bind_param("ssss", $remitenteStr, $destinatarioStr, $nombre_archivo, $ruta_final);
-            $stmt->execute();
-            header('Location: gestion.php?msg=ok');
-            exit;
-        }
-        $mensaje = 'No se pudo guardar el archivo.';
-    }
+    $mensaje = 'Para cargar documentos falta crear endpoints de documentos en el backend Flask.';
 }
 
 $docs = [];
-if ($conexion) {
-    $where = [];
-    $params = [];
-    $types = '';
-
-    if ($perfil === 'FIRMANTE') {
-        $where[] = 'id_destinatario = ?';
-        $params[] = (string) $usuarioId;
-        $types .= 's';
-    } elseif ($perfil !== 'ADMIN') {
-        $where[] = 'id_remitente = ?';
-        $params[] = (string) $usuarioId;
-        $types .= 's';
-    }
-
-    if ($fecha_inicio !== '' && $fecha_fin !== '') {
-        $where[] = 'DATE(fecha_creacion) BETWEEN ? AND ?';
-        $params[] = $fecha_inicio;
-        $params[] = $fecha_fin;
-        $types .= 'ss';
-    }
-    if ($estado_f !== '') {
-        $where[] = 'estado = ?';
-        $params[] = $estado_f;
-        $types .= 's';
-    }
-
-    $sql = 'SELECT * FROM documentos';
-    if ($where) {
-        $sql .= ' WHERE ' . implode(' AND ', $where);
-    }
-    $sql .= ' ORDER BY fecha_creacion DESC';
-
-    $stmt = $conexion->prepare($sql);
-    if ($types !== '') {
-        $stmt->bind_param($types, ...$params);
-    }
-    $stmt->execute();
-    $result = $stmt->get_result();
-    while ($row = $result->fetch_assoc()) {
-        $remitenteNombre = $usuariosPorId[(string) ($row['id_remitente'] ?? '')]['nombre'] ?? 'S/N';
-        if ($remitente_f !== '' && stripos($remitenteNombre, $remitente_f) === false) {
-            continue;
-        }
-        $docs[] = $row;
-    }
-}
 ?>
 
 <!DOCTYPE html>

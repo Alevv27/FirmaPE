@@ -13,8 +13,10 @@ if (!$usuarioResponse['ok']) {
     exit;
 }
 $u = $usuarioResponse['data']['usuario'];
-$perfiles = (api_request('GET', '/perfiles')['data']['perfiles'] ?? []);
-$empresas = (api_request('GET', '/empresas')['data']['empresas'] ?? []);
+$perfilesResponse = api_request('GET', '/perfiles');
+$empresasResponse = api_request('GET', '/empresas');
+$perfiles = $perfilesResponse['ok'] ? ($perfilesResponse['data']['perfiles'] ?? []) : [];
+$empresas = $empresasResponse['ok'] ? ($empresasResponse['data']['empresas'] ?? []) : [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $payload = [

@@ -3,7 +3,7 @@
 /*
  * Cliente para el backend Flask.
  *
- * En Render configura FIRMAPE_API_URL con el valor:
+ * En Render puedes configurar FIRMAPE_API_URL con el valor:
  * https://app-tienda-massiel-backen-prd.onrender.com/api
  *
  * En local puedes usar:
@@ -11,12 +11,34 @@
  */
 function api_base_url(): string
 {
-    $base = getenv('FIRMAPE_API_URL') ?: 'https://app-tienda-massiel-backen-prd.onrender.com/api';
+    $envBase = getenv('FIRMAPE_API_URL');
+    if ($envBase) {
+        return rtrim($envBase, '/');
+    }
+
+    $host = strtolower($_SERVER['HTTP_HOST'] ?? '');
+    $isLocal = str_starts_with($host, 'localhost')
+        || str_starts_with($host, '127.0.0.1')
+        || str_starts_with($host, '::1');
+
+    $base = $isLocal
+        ? 'http://127.0.0.1:5000/api'
+        : 'https://app-tienda-massiel-backen-prd.onrender.com/api';
+
     return rtrim($base, '/');
 }
 
 function api_request(string $method, string $path, ?array $payload = null): array
 {
+    if (!function_exists('curl_init')) {
+        return [
+            'ok' => false,
+            'status' => 0,
+            'data' => null,
+            'error' => 'La extension curl de PHP no esta habilitada',
+        ];
+    }
+
     $url = api_base_url() . '/' . ltrim($path, '/');
 
     $ch = curl_init($url);
@@ -41,7 +63,8 @@ function api_request(string $method, string $path, ?array $payload = null): arra
             'ok' => false,
             'status' => 0,
             'data' => null,
-            'error' => $curlError ?: 'No se pudo conectar con el backend',
+            'error' => 'El servicio no esta disponible en este momento. Intentalo nuevamente en unos minutos.',
+            'technical_error' => $curlError ?: 'No se pudo conectar con el backend',
         ];
     }
 
@@ -65,17 +88,9 @@ function api_request(string $method, string $path, ?array $payload = null): arra
 }
 
 /*
- * Conexion MySQL legacy usada solo por el flujo de documentos de este front.
- * La autenticacion, usuarios, perfiles y empresas ahora salen del backend Flask.
+ * Compatibilidad con pantallas antiguas.
+ * Este front ya no abre conexiones directas a base de datos; todo debe pasar
+ * por el backend Flask usando api_request().
  */
-$conexion = new mysqli(
-    getenv('MYSQL_HOST') ?: 'sql10.freesqldatabase.com',
-    getenv('MYSQL_USER') ?: 'sql10824373',
-    getenv('MYSQL_PASSWORD') ?: 'LVXmthUgxs',
-    getenv('MYSQL_DATABASE') ?: 'sql10824373'
-);
-
-if ($conexion->connect_error) {
-    $conexion = null;
-}
+$conexion = null;
 ?>

@@ -86,14 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && !empty($_POST['nombre_temp'])) {
             }
         }
 
-        // 6. Actualizar estado en BD
-        if ($id_doc && isset($conexion)) {
-            $stmt_upd = $conexion->prepare("UPDATE documentos SET estado = 'Firmado' WHERE id = ?");
-            $stmt_upd->bind_param("i", $id_doc);
-            $stmt_upd->execute();
-        }
-
-        // 7. Limpiar buffer y descargar
+        // 6. Limpiar buffer y descargar
         if (ob_get_contents()) ob_end_clean();
 
         $pdf->Output('DOCUMENTO_FIRMADO_' . date('His') . '.pdf', 'D');
