@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once '../includes/auth.php';
+require_once '../includes/toast.php';
 require_admin();
 
 $id = (int) ($_GET['id'] ?? 0);
@@ -41,6 +42,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+$toast = toast_message($error ?: $msg, $error ? 'error' : 'success');
+
 $perfilActualId = null;
 foreach ($perfiles as $perfil) {
     if (($perfil['codigo'] ?? '') === ($u['perfil'] ?? '')) {
@@ -56,6 +59,7 @@ foreach ($perfiles as $perfil) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Editar Usuario | FIRMAPE</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <?php render_sweetalert_assets(); ?>
     <style>
         :root { --glass-bg:rgba(255,255,255,.85); --glass-border:rgba(255,255,255,.5); --text-main:#1e293b; --text-muted:#64748b; --accent:#6366f1; }
         body { margin:0; font-family:'Inter', sans-serif; min-height:100vh; display:flex; justify-content:center; align-items:center; color:var(--text-main); }
@@ -67,8 +71,6 @@ foreach ($perfiles as $perfil) {
         .check-row { display:flex; align-items:center; gap:10px; margin-bottom:20px; }
         .check-row input { width:auto; margin:0; }
         .btn-up { width:100%; padding:15px; background:#1e293b; color:white; border:none; border-radius:12px; font-weight:700; cursor:pointer; margin-top:10px; }
-        .error-msg { background:#fef2f2; color:#dc2626; padding:12px; border-radius:12px; font-size:12px; margin-bottom:15px; }
-        .success-msg { background:#dcfce7; color:#166534; padding:12px; border-radius:12px; font-size:13px; font-weight:600; text-align:center; margin-bottom:15px; }
         .back-link { display:block; text-align:center; margin-top:25px; font-size:13px; color:var(--text-muted); text-decoration:none; font-weight:600; }
     </style>
 </head>
@@ -78,8 +80,6 @@ foreach ($perfiles as $perfil) {
 
 <div class="card">
     <h2>Editar Usuario</h2>
-    <?php if ($msg): ?><div class="success-msg"><?= e($msg) ?></div><?php endif; ?>
-    <?php if ($error): ?><div class="error-msg"><?= e($error) ?></div><?php endif; ?>
 
     <form method="POST">
         <label>Nombre</label>
@@ -123,5 +123,6 @@ foreach ($perfiles as $perfil) {
     <a href="admin_panel.php" class="back-link">Cancelar y volver al panel</a>
 </div>
 
+<?php render_toast_script($toast); ?>
 </body>
 </html>

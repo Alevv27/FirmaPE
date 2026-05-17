@@ -4,6 +4,7 @@ ini_set('display_errors', 1);
 session_start();
 
 require_once 'includes/auth.php';
+require_once 'includes/toast.php';
 
 $error = '';
 $info = '';
@@ -89,6 +90,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['accion'] ?? '') === 'verif
         }
     }
 }
+
+$toast = toast_message($error ?: $info, $error ? 'error' : 'success');
 ?>
 
 <!DOCTYPE html>
@@ -97,6 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['accion'] ?? '') === 'verif
     <meta charset="UTF-8">
     <title>Registro</title>
     <link rel="stylesheet" href="css/estilos.css">
+    <?php render_sweetalert_assets(); ?>
     <style>
         .eye {
             font-size: 11px !important; font-weight: bold; text-transform: uppercase;
@@ -128,13 +132,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['accion'] ?? '') === 'verif
     <form method="POST">
         <input type="hidden" name="accion" value="verificar">
         <input class="code-input" name="codigo" placeholder="000000" maxlength="6" pattern="[0-9]{6}" required>
-
-        <?php if ($info): ?>
-            <div class="alert-success show"><?= e($info) ?></div>
-        <?php endif; ?>
-        <?php if ($error): ?>
-            <div class="alert-error show"><?= e($error) ?></div>
-        <?php endif; ?>
 
         <button type="submit">Verificar y crear cuenta</button>
     </form>
@@ -169,10 +166,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['accion'] ?? '') === 'verif
             <input type="password" name="confirm" id="confirm" placeholder="Confirmar contrasena" required>
             <span class="eye" id="toggleConfirm">Ver</span>
         </div>
-
-        <?php if ($error): ?>
-            <div class="alert-error show"><?= e($error) ?></div>
-        <?php endif; ?>
 
         <button id="btnRegistro" type="submit">Registrar</button>
     </form>
@@ -210,11 +203,21 @@ if (btnRegistro) {
         const confirm = document.getElementById("confirm");
         if (pass.value !== confirm.value && pass.value !== "") {
             e.preventDefault();
-            alert("Las contrasenas no coinciden.");
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'error',
+                title: 'Las contrasenas no coinciden.',
+                showConfirmButton: false,
+                timer: 3200,
+                timerProgressBar: true,
+                width: '360px'
+            });
         }
     });
 }
 </script>
+<?php render_toast_script($toast); ?>
 
 <?php if (isset($_GET['success'])): ?>
 <script>

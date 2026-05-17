@@ -3,6 +3,7 @@ session_start();
 require_once 'includes/auth.php';
 require_once 'includes/sidebar.php';
 require_once 'includes/topbar.php';
+require_once 'includes/toast.php';
 require_module('GESTION');
 
 $usuario = current_user();
@@ -88,6 +89,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['pdf_documento']) && 
         }
     }
 }
+
+$toast = toast_message($mensaje, $tipoMensaje === 'success' ? 'success' : 'error');
 ?>
 
 <!DOCTYPE html>
@@ -96,6 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['pdf_documento']) && 
     <meta charset="UTF-8">
     <title>Gestion de Documentos | FIRMAPE</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <?php render_sweetalert_assets(); ?>
     <style>
         body { margin: 0; font-family: 'Segoe UI', sans-serif; background: linear-gradient(to right, rgba(204,231,240,0.7), rgba(126,200,227,0.7)), url("imagenes/fondope.png"); background-size: cover; background-attachment: fixed; }
         <?php render_firmape_topbar_styles(); ?>
@@ -109,9 +113,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['pdf_documento']) && 
         h2 { border-bottom: 3px solid #4db8ff; padding-bottom: 10px; font-size: 1.2rem; color: #333; margin-top: 0; }
         .btn-primary { background:#0f69b5; color:white; border:none; padding:12px 20px; border-radius:6px; cursor:pointer; font-weight:800; box-shadow:0 5px 12px rgba(15,105,181,.24); }
         .btn-primary:hover { background:#0b5a9d; }
-        .alert { padding:12px; border-radius:8px; margin-bottom:15px; font-weight:700; }
-        .alert-error { background:#fee2e2; color:#991b1b; }
-        .alert-success { background:#d1fae5; color:#065f46; }
         .process-form { display:grid; grid-template-columns: 1fr 1fr; gap:22px 28px; align-items:end; }
         .field label { display:block; font-size:12px; font-weight:800; margin-bottom:5px; color:#334155; }
         .field input, .field textarea, .field select { width:100%; padding:12px 10px; border:0; border-bottom:1px solid #94a3b8; box-sizing:border-box; outline:none; background:white; font-size:14px; }
@@ -140,10 +141,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['pdf_documento']) && 
 <?php render_firmape_sidebar('gestion'); ?>
 <main class="module-content">
 <div class="container">
-    <?php if ($mensaje): ?>
-        <div class="alert <?= $tipoMensaje === 'success' ? 'alert-success' : 'alert-error' ?>"><?= e($mensaje) ?></div>
-    <?php endif; ?>
-
     <?php if ($canUpload): ?>
     <div class="card">
         <div class="card-title">
@@ -213,6 +210,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['pdf_documento']) && 
     <?php endif; ?>
 </div>
 </main>
+<?php render_toast_script($toast); ?>
 </div>
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';

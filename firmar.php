@@ -12,6 +12,7 @@ $id_doc = isset($_GET['id_doc']) ? $_GET['id_doc'] : "";
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Firmar documento | FIRMAPE</title>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <style>
         body {
@@ -129,6 +130,19 @@ $id_doc = isset($_GET['id_doc']) ? $_GET['id_doc'] : "";
 <canvas id="canvasOculto" style="display:none;"></canvas>
 
 <script>
+function mostrarToast(icon, title) {
+    Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon,
+        title,
+        showConfirmButton: false,
+        timer: 3200,
+        timerProgressBar: true,
+        width: '360px'
+    });
+}
+
 const pdfCanvas = document.getElementById("pdfCanvas");
 const ctxPDF = pdfCanvas.getContext("2d");
 const inputPdf = document.getElementById("inputPdf");
@@ -142,7 +156,7 @@ let dibujando = false;
 // --- FUNCIÓN DE CONFIRMACIÓN NUEVA ---
 function confirmarFirma() {
     if(!document.getElementById("firmaBase64").value) {
-        alert("Debe colocar la firma en el documento antes de finalizar.");
+        mostrarToast('warning', 'Debe colocar la firma en el documento antes de finalizar.');
         return false;
     }
     return confirm("¿Está seguro de que desea guardar el documento firmado?");
@@ -185,14 +199,14 @@ function borrarFirmaColocada() {
 }
 
 function usarDibujo() {
-    if (!pdfCargado) return alert("⚠️ No hay ningún PDF cargado");
+    if (!pdfCargado) return mostrarToast('warning', 'No hay ningun PDF cargado.');
     posicionarFirma(canvasFirma.toDataURL("image/png"));
 }
 
 function procesarImagenFirma() {
-    if (!pdfCargado) return alert("⚠️ No hay ningún PDF cargado");
+    if (!pdfCargado) return mostrarToast('warning', 'No hay ningun PDF cargado.');
     const file = document.getElementById('inputFoto').files[0];
-    if (!file) return alert("Selecciona la foto de tu firma");
+    if (!file) return mostrarToast('warning', 'Selecciona la foto de tu firma.');
 
     const reader = new FileReader();
     reader.onload = function(e) {

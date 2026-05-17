@@ -3,6 +3,7 @@ session_start();
 require_once 'includes/auth.php';
 require_once 'includes/sidebar.php';
 require_once 'includes/topbar.php';
+require_once 'includes/toast.php';
 require_module('FIRMAR');
 require_profile('FIRMANTE', 'ADMIN');
 
@@ -77,12 +78,15 @@ function query_link(array $params): string
     $query = array_filter(array_merge($base, $params), fn($v) => $v !== '' && $v !== null);
     return 'firmante_documentos.php' . ($query ? '?' . http_build_query($query) : '');
 }
+
+$toast = toast_message($mensaje, $tipoMensaje === 'success' ? 'success' : 'error');
 ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <title>Firmar documentos | FIRMAPE</title>
+    <?php render_sweetalert_assets(); ?>
     <style>
         body { margin: 0; font-family: 'Segoe UI', Arial, sans-serif; background: linear-gradient(to right, rgba(204,231,240,.7), rgba(126,200,227,.7)), url("imagenes/fondope.png"); background-size: cover; background-attachment: fixed; }
         <?php render_firmape_topbar_styles(); ?>
@@ -123,9 +127,6 @@ function query_link(array $params): string
         .btn-rechazar { background: #ef4444; }
         .btn-eliminar { background: #64748b; }
         .actions { display: flex; gap: 7px; justify-content: flex-start; flex-wrap: wrap; min-width:250px; }
-        .alert { padding: 12px; border-radius: 8px; margin-bottom: 15px; font-weight: 700; }
-        .alert-error { background: #fee2e2; color: #991b1b; }
-        .alert-success { background: #d1fae5; color: #065f46; }
         .muted { color: #94a3b8; text-align: center; padding: 45px; }
         .date-filter { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; padding: 14px; border-radius: 12px; background: #f8fafc; margin-bottom: 18px; border:1px solid #edf2f7; }
         .date-filter label { display:block; font-size: 11px; font-weight: 800; color:#475569; margin-bottom: 5px; }
@@ -143,10 +144,6 @@ function query_link(array $params): string
 <?php render_firmape_sidebar('firmar'); ?>
 <main class="module-content">
 <div class="container">
-    <?php if ($mensaje): ?>
-        <div class="alert <?= $tipoMensaje === 'success' ? 'alert-success' : 'alert-error' ?>"><?= e($mensaje) ?></div>
-    <?php endif; ?>
-
     <div class="card">
         <div class="card-head">
             <div>
@@ -271,6 +268,7 @@ function query_link(array $params): string
     </div>
 </div>
 </main>
+<?php render_toast_script($toast); ?>
 </div>
 </body>
 </html>

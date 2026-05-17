@@ -3,6 +3,7 @@ session_start();
 require_once 'includes/auth.php';
 require_once 'includes/sidebar.php';
 require_once 'includes/topbar.php';
+require_once 'includes/toast.php';
 require_module('PROCESOS_GENERAL');
 require_profile('GESTOR', 'ADMIN');
 
@@ -58,12 +59,15 @@ function procesos_general_query_link(array $params): string
     $query = array_filter(array_merge($base, $params), fn($v) => $v !== '' && $v !== null);
     return 'procesos_general.php' . ($query ? '?' . http_build_query($query) : '');
 }
+
+$toast = toast_message($mensaje, $tipoMensaje === 'success' ? 'success' : 'error');
 ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <title>Procesos General | FIRMAPE</title>
+    <?php render_sweetalert_assets(); ?>
     <style>
         body { margin: 0; font-family: 'Segoe UI', Arial, sans-serif; background: linear-gradient(to right, rgba(204,231,240,.7), rgba(126,200,227,.7)), url("imagenes/fondope.png"); background-size: cover; background-attachment: fixed; }
         <?php render_firmape_topbar_styles(); ?>
@@ -104,8 +108,6 @@ function procesos_general_query_link(array $params): string
         .file-link { color:#0ea5e9; text-decoration:none; font-weight:900; display:inline-flex; align-items:center; justify-content:center; width:78px; height:38px; border-radius:8px; background:#e0f2fe; }
         .btn-filtrar { background: #6c5ce7; }
         .btn-limpiar { background: #64748b; }
-        .alert { padding: 12px; border-radius: 8px; margin-bottom: 15px; font-weight: 700; }
-        .alert-error { background: #fee2e2; color: #991b1b; }
         .muted { color: #94a3b8; text-align: center; padding: 45px; }
         .pager { display: flex; justify-content: space-between; align-items: center; margin-top: 18px; color:#475569; font-size: 13px; font-weight: 800; }
         .pager-links { display: flex; gap: 8px; }
@@ -119,10 +121,6 @@ function procesos_general_query_link(array $params): string
 <?php render_firmape_sidebar('procesos'); ?>
 <main class="module-content">
 <div class="container">
-    <?php if ($mensaje): ?>
-        <div class="alert <?= $tipoMensaje === 'error' ? 'alert-error' : '' ?>"><?= e($mensaje) ?></div>
-    <?php endif; ?>
-
     <div class="card">
         <div class="card-head">
             <div>
@@ -229,6 +227,7 @@ function procesos_general_query_link(array $params): string
     </div>
 </div>
 </main>
+<?php render_toast_script($toast); ?>
 </div>
 </body>
 </html>

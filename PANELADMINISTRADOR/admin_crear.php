@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once '../includes/auth.php';
+require_once '../includes/toast.php';
 require_admin();
 
 $error = '';
@@ -30,6 +31,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = $response['error'] ?: 'Error al guardar.';
     }
 }
+
+$toast = toast_message($error, 'error');
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -37,6 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="UTF-8">
     <title>Nuevo Usuario | FIRMAPE</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <?php render_sweetalert_assets(); ?>
     <style>
         body { margin:0; font-family:'Inter', sans-serif; display:flex; justify-content:center; align-items:center; min-height:100vh; }
         .bg-overlay { position:fixed; inset:0; background:linear-gradient(135deg, rgba(255,255,255,.9), rgba(255,255,255,.6)), url('../imagenes/fondopanel.png'); background-size:cover; z-index:-1; }
@@ -45,7 +49,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         label { display:block; font-size:11px; font-weight:700; color:#64748b; margin-bottom:8px; text-transform:uppercase; }
         input, select { width:100%; padding:14px; margin-bottom:20px; border:1.5px solid rgba(0,0,0,.08); border-radius:12px; box-sizing:border-box; }
         .btn-add { width:100%; padding:15px; background:#000; color:white; border:none; border-radius:12px; font-weight:700; cursor:pointer; }
-        .error-msg { background:#fef2f2; color:#dc2626; padding:10px; border-radius:10px; font-size:12px; margin-bottom:15px; text-align:center; }
         .back { display:block; text-align:center; margin-top:20px; color:#64748b; text-decoration:none; font-size:13px; }
     </style>
 </head>
@@ -53,7 +56,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="bg-overlay"></div>
     <div class="card">
         <h2>Nuevo Usuario</h2>
-        <?php if ($error): ?><div class="error-msg"><?= e($error) ?></div><?php endif; ?>
         <form method="POST">
             <label>Nombre</label><input type="text" name="nombre" required>
             <label>Apellido</label><input type="text" name="apellido" required>
@@ -77,5 +79,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </form>
         <a href="admin_panel.php" class="back">Volver al panel</a>
     </div>
+    <?php render_toast_script($toast); ?>
 </body>
 </html>

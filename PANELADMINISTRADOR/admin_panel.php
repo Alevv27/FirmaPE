@@ -7,6 +7,7 @@ header('Pragma: no-cache');
 require_once '../includes/auth.php';
 require_once '../includes/sidebar.php';
 require_once '../includes/topbar.php';
+require_once '../includes/toast.php';
 require_admin();
 
 if (isset($_GET['eliminar'])) {
@@ -60,6 +61,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['editar_id'])) {
 $usuariosResponse = api_request('GET', '/usuarios');
 $usuarios = $usuariosResponse['ok'] ? ($usuariosResponse['data']['usuarios'] ?? []) : [];
 $totalUsers = count($usuarios);
+$toast = null;
+
+if (isset($_GET['res'])) {
+    $toast = [
+        'icon' => 'success',
+        'text' => $_GET['res'] === 'desactivado'
+            ? 'El usuario tenia procesos asociados y fue desactivado.'
+            : 'Operacion realizada.',
+    ];
+}
+
+if (isset($_GET['error'])) {
+    $toast = [
+        'icon' => 'error',
+        'text' => (string) $_GET['error'],
+    ];
+}
+
+if ($mensaje) {
+    $toast = [
+        'icon' => 'success',
+        'text' => $mensaje,
+    ];
+}
+
+if ($error) {
+    $toast = [
+        'icon' => 'error',
+        'text' => $error,
+    ];
+}
 
 function usuario_apellido(array $usuario): string
 {
@@ -73,7 +105,7 @@ function usuario_apellido(array $usuario): string
     <meta charset="UTF-8">
     <title>Panel Administrativo | FIRMAPE</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <?php render_sweetalert_assets(); ?>
     <style>
         :root { --glass-bg: rgba(255,255,255,.92); --glass-border: rgba(226,232,240,.8); --text-main:#111827; --accent:#2f8cff; --dark:#182035; }
         * { box-sizing:border-box; }
@@ -112,8 +144,6 @@ function usuario_apellido(array $usuario): string
         .action-group { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
         .btn-edit { background:#eef2ff; color:#4338ca; }
         .btn-danger { background:#fee2e2; color:#dc2626; font-weight:900; border:none; cursor:pointer; border-radius:9px; padding:9px 11px; }
-        .alert { margin:0 0 18px; background:#dcfce7; color:#166534; padding:12px 16px; border-radius:10px; font-weight:800; }
-        .alert-error { background:#fee2e2; color:#991b1b; }
         .modal-backdrop { position:fixed; inset:0; background:rgba(15,23,42,.52); display:none; align-items:center; justify-content:center; padding:22px; z-index:2000; }
         .modal-backdrop.show { display:flex; }
         .modal-card { width:100%; max-width:520px; background:rgba(255,255,255,.98); border-radius:18px; box-shadow:0 30px 70px rgba(15,23,42,.3); overflow:hidden; }
@@ -145,17 +175,6 @@ function usuario_apellido(array $usuario): string
     <?php render_firmape_sidebar('admin', '../'); ?>
     <main class="module-content">
     <div class="container">
-        <?php if (isset($_GET['res'])): ?>
-            <div class="alert">
-                <?= $_GET['res'] === 'desactivado'
-                    ? 'El usuario tenia procesos asociados y fue desactivado.'
-                    : 'Operacion realizada.' ?>
-            </div>
-        <?php endif; ?>
-        <?php if (isset($_GET['error'])): ?><div class="alert alert-error"><?= e($_GET['error']) ?></div><?php endif; ?>
-        <?php if ($mensaje): ?><div class="alert"><?= e($mensaje) ?></div><?php endif; ?>
-        <?php if ($error): ?><div class="alert alert-error"><?= e($error) ?></div><?php endif; ?>
-
         <div class="page-head">
             <div>
                 <h1>Administracion</h1>
@@ -328,5 +347,6 @@ function usuario_apellido(array $usuario): string
         }).then((result) => { if (result.isConfirmed) window.location.href = url; });
     }
     </script>
+    <?php render_toast_script($toast); ?>
 </body>
 </html>

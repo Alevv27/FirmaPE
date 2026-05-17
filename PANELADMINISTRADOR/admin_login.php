@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once '../includes/auth.php';
+require_once '../includes/toast.php';
 
 $mensaje = '';
 $success = false;
@@ -29,6 +30,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $success = true;
     }
 }
+
+$toast = toast_message($mensaje, 'error');
 ?>
 
 <!DOCTYPE html>
@@ -38,6 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Login | FIRMAPE</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <?php render_sweetalert_assets(); ?>
     <style>
         :root { --card-bg: rgba(255,255,255,.95); --text-main:#1e293b; --text-muted:#64748b; --accent:#6366f1; --border:#e2e8f0; }
         body {
@@ -60,7 +64,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .password-wrapper { position:relative; }
         .toggle-btn { position:absolute; right:14px; top:50%; transform:translateY(-50%); cursor:pointer; font-size:11px; font-weight:700; color:var(--accent); text-transform:uppercase; }
         button { width:100%; padding:15px; background:#1f2937; color:white; border:none; border-radius:12px; cursor:pointer; font-weight:600; font-size:16px; margin-top:10px; }
-        .alert-error { background:#fef2f2; color:#b91c1c; padding:12px; border-radius:10px; margin-top:20px; font-size:13px; border:1px solid #fee2e2; }
         #overlayBienvenida { position:fixed; inset:0; background:#fff; display:flex; flex-direction:column; justify-content:center; align-items:center; z-index:1000; visibility:hidden; opacity:0; transition:.6s; }
         #overlayBienvenida.show { visibility:visible; opacity:1; }
         .loader { width:48px; height:48px; border:5px solid #f3f3f3; border-top:5px solid #1f2937; border-radius:50%; animation:spin 1s linear infinite; margin-bottom:20px; }
@@ -92,7 +95,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <button type="submit">Iniciar Sesion</button>
     </form>
 
-    <?php if ($mensaje): ?><div class="alert-error"><?= e($mensaje) ?></div><?php endif; ?>
 </div>
 
 <div id="overlayBienvenida">
@@ -114,6 +116,7 @@ window.onload = () => {
 };
 <?php endif; ?>
 </script>
+<?php render_toast_script($toast); ?>
 
 </body>
 </html>

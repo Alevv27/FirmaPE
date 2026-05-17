@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once 'includes/auth.php';
+require_once 'includes/toast.php';
 
 $mensaje = '';
 $success = false;
@@ -30,6 +31,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
+$toast = toast_message($mensaje, 'error');
 ?>
 
 <!DOCTYPE html>
@@ -39,6 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <title>Login | FIRMAPE</title>
     <link rel="stylesheet" href="css/estilos.css">
     <link rel="icon" href="imagenes/favicon.png">
+    <?php render_sweetalert_assets(); ?>
     <style>
         .container {
             max-width: 420px;
@@ -114,10 +118,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <button type="submit">Ingresar</button>
     </form>
 
-    <?php if ($mensaje): ?>
-        <div class="alert-error show"><?= e($mensaje) ?></div>
-    <?php endif; ?>
-
     <div class="links">
         <a href="register.php">Crear cuenta</a>
     </div>
@@ -148,6 +148,7 @@ window.onload = () => {
 };
 <?php endif; ?>
 </script>
+<?php render_toast_script($toast); ?>
 
 </body>
 </html>

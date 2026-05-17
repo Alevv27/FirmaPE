@@ -1,17 +1,19 @@
 <?php
 session_start();
 require_once 'includes/auth.php';
+require_once 'includes/toast.php';
 require_login();
 
 $usuario = current_user();
 $mensaje = '';
-$color_alerta = '#ff4d4d';
+$tipoMensaje = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $nuevoEmail = trim(strtolower($_POST['email'] ?? ''));
 
     if (!filter_var($nuevoEmail, FILTER_VALIDATE_EMAIL)) {
         $mensaje = 'Correo invalido.';
+        $tipoMensaje = 'error';
     } else {
         $response = api_request('PATCH', '/usuarios/' . (int) $usuario['id'], [
             'email' => $nuevoEmail,
@@ -21,12 +23,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['auth']['usuario'] = $response['data']['usuario'];
             $usuario = current_user();
             $mensaje = 'Correo actualizado correctamente.';
-            $color_alerta = '#00c853';
+            $tipoMensaje = 'success';
         } else {
             $mensaje = $response['error'] ?: 'No se pudo actualizar el correo.';
+            $tipoMensaje = 'error';
         }
     }
 }
+
+$toast = toast_message($mensaje, $tipoMensaje === 'success' ? 'success' : 'error');
 ?>
 
 <!DOCTYPE html>
@@ -35,6 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="UTF-8">
     <title>Mi perfil</title>
     <link rel="stylesheet" href="css/estilos.css">
+    <?php render_sweetalert_assets(); ?>
     <style>
         .btn-volver {
             display: inline-block; margin-top: 20px; text-decoration: none;
@@ -65,16 +71,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <button type="submit">Guardar cambios</button>
     </form>
 
-    <?php if ($mensaje): ?>
-        <div class="alert-error show" style="background: <?= e($color_alerta) ?>; color: white; border: none;">
-            <?= e($mensaje) ?>
-        </div>
-    <?php endif; ?>
-
     <div style="margin-top: 10px;">
         <a href="principal.php" class="btn-volver">Volver al panel</a>
     </div>
 </div>
 
+<?php render_toast_script($toast); ?>
 </body>
 </html>

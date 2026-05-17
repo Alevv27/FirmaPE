@@ -95,8 +95,6 @@ $esta_listo = !empty($archivo_pre_cargado) ? 'true' : 'false';
         .btn-small { padding: 10px; font-size: 12px; border-radius: 9px; }
         .nav-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
         .info-carga { background: #ecfdf5; border: 1px solid #a7f3d0; padding: 12px; border-radius: 12px; margin-bottom: 16px; font-size: 12px; color: #065f46; display: flex; align-items: center; gap: 8px; }
-        .alert-error { background: #fee2e2; border: 1px solid #fecaca; color: #991b1b; padding: 12px; border-radius: 12px; margin-bottom: 16px; font-size: 13px; font-weight: 700; }
-        .alert-success { background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; padding: 12px; border-radius: 12px; margin-bottom: 16px; font-size: 13px; font-weight: 700; display: none; }
         .signature-tools { display: grid; gap: 10px; margin-bottom: 14px; }
         .field-label { font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 6px; }
         #canvasFirma { width: 100%; height: 120px; border: 2px dashed #93c5fd; border-radius: 12px; background: white; cursor: crosshair; }
@@ -137,14 +135,6 @@ $esta_listo = !empty($archivo_pre_cargado) ? 'true' : 'false';
 <div class="container">
     <div class="card">
         <h2>Firma Digital</h2>
-
-        <?php if ($error_token): ?>
-            <div class="alert-error"><?= e($error_token) ?></div>
-        <?php endif; ?>
-
-        <div id="firmadoMsg" class="alert-success">
-            Documento firmado correctamente. Este proceso ya fue cerrado y el enlace no estara disponible para volver a firmar.
-        </div>
 
         <form id="formSubida" style="<?= $token !== '' ? 'display:none;' : '' ?>">
             <div class="upload-area" onclick="document.getElementById('inputPdf').click()">
@@ -264,6 +254,22 @@ const canvasFirma = document.getElementById('canvasFirma');
 const firmaCtx = canvasFirma.getContext('2d');
 let dibujando = false;
 
+function mostrarToast(icon, title) {
+    Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon,
+        title,
+        showConfirmButton: false,
+        timer: 3200,
+        timerProgressBar: true,
+        width: '360px'
+    });
+}
+
+const tokenError = <?= json_encode($error_token, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+if (tokenError) mostrarToast('error', tokenError);
+
 document.getElementById('inputPdf').onchange = function() {
     if (this.files[0]) document.getElementById('fileName').innerText = this.files[0].name;
 };
@@ -272,7 +278,7 @@ document.getElementById('formSubida').onsubmit = async (e) => {
     e.preventDefault();
     const fileInput = document.getElementById('inputPdf');
     if (!fileInput.files[0]) {
-        Swal.fire('Aviso', 'Seleccione un archivo PDF.', 'info');
+        mostrarToast('info', 'Seleccione un archivo PDF.');
         return;
     }
 
@@ -289,12 +295,12 @@ document.getElementById('formSubida').onsubmit = async (e) => {
             document.getElementById('pdf_ruta_auto').value = ruta;
             listo = true;
             await cargarPdf(ruta);
-            Swal.fire('Exito', 'Archivo cargado correctamente.', 'success');
+            mostrarToast('success', 'Archivo cargado correctamente.');
         } else {
-            Swal.fire('Error', data.message, 'error');
+            mostrarToast('error', data.message);
         }
     } catch (error) {
-        Swal.fire('Error', 'Error de comunicacion con el servidor.', 'error');
+        mostrarToast('error', 'Error de comunicacion con el servidor.');
     }
 };
 
@@ -312,7 +318,7 @@ async function cargarPdf(url) {
         await renderPagina();
         listo = true;
     } catch (error) {
-        Swal.fire('Error', 'No se pudo visualizar el PDF.', 'error');
+        mostrarToast('error', 'No se pudo visualizar el PDF.');
     }
 }
 
@@ -365,14 +371,14 @@ function limpiarDibujo() {
 }
 
 function usarDibujo() {
-    if (!listo) return Swal.fire('Atencion', 'Primero cargue el PDF.', 'warning');
+    if (!listo) return mostrarToast('warning', 'Primero cargue el PDF.');
     colocarFirma(canvasConFondoBlanco(canvasFirma));
 }
 
 function usarImagenFirma() {
-    if (!listo) return Swal.fire('Atencion', 'Primero cargue el PDF.', 'warning');
+    if (!listo) return mostrarToast('warning', 'Primero cargue el PDF.');
     const file = document.getElementById('inputFirmaImagen').files[0];
-    if (!file) return Swal.fire('Atencion', 'Seleccione una imagen de firma.', 'warning');
+    if (!file) return mostrarToast('warning', 'Seleccione una imagen de firma.');
     const reader = new FileReader();
     reader.onload = (e) => {
         const img = new Image();
@@ -422,7 +428,7 @@ function colocarFirma(src) {
 }
 
 function cambiarModoFirma(modo) {
-    if (!listo) return Swal.fire('Atencion', 'Primero cargue el PDF.', 'warning');
+    if (!listo) return mostrarToast('warning', 'Primero cargue el PDF.');
     modoFirma = modo;
     document.getElementById('tipoFirma').value = modo;
     document.getElementById('modoNormalBtn').classList.toggle('active', modo === 'normal');
@@ -521,11 +527,11 @@ function actualizarCoordenadas() {
 
 function intentarFirmar() {
     if (!listo) {
-        Swal.fire('Atencion', 'No hay ningun documento cargado para firmar.', 'warning');
+        mostrarToast('warning', 'No hay ningun documento cargado para firmar.');
         return;
     }
     if (modoFirma !== 'servidor' && !document.getElementById('firmaBase64').value) {
-        Swal.fire('Atencion', 'Debe dibujar o subir una firma y colocarla en el documento.', 'warning');
+        mostrarToast('warning', 'Debe dibujar o subir una firma y colocarla en el documento.');
         return;
     }
 
@@ -572,16 +578,15 @@ async function enviarFirma() {
         URL.revokeObjectURL(url);
 
         cerrarFlujoFirmado();
-        Swal.fire('Documento firmado', 'El proceso fue cerrado correctamente.', 'success');
+        mostrarToast('success', 'El proceso fue cerrado correctamente.');
     } catch (error) {
         btn.disabled = false;
         btn.textContent = 'FIRMAR DOCUMENTO';
-        Swal.fire('Error', limpiarErrorFirma(error.message), 'error');
+        mostrarToast('error', limpiarErrorFirma(error.message));
     }
 }
 
 function cerrarFlujoFirmado() {
-    document.getElementById('firmadoMsg').style.display = 'block';
     document.querySelector('.signature-tools').style.display = 'none';
     document.getElementById('formFirma').style.display = 'none';
     quitarFirma();
