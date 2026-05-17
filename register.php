@@ -1,16 +1,44 @@
 <?php
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
+session_start();
 
 require_once 'includes/auth.php';
 
 $error = '';
+$info = '';
+$step = $_SESSION['registro_pendiente'] ?? null;
 $perfilesResponse = api_request('GET', '/perfiles');
 $empresasResponse = api_request('GET', '/empresas');
 $perfiles = $perfilesResponse['ok'] ? ($perfilesResponse['data']['perfiles'] ?? []) : [];
 $empresas = $empresasResponse['ok'] ? ($empresasResponse['data']['empresas'] ?? []) : [];
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['accion'] ?? '') === 'verificar') {
+    $codigoIngresado = trim($_POST['codigo'] ?? '');
+    $pendiente = $_SESSION['registro_pendiente'] ?? null;
+
+    if (!$pendiente) {
+        $error = 'No hay registro pendiente. Vuelve a completar el formulario.';
+    } elseif (time() > (int) ($pendiente['expira'] ?? 0)) {
+        unset($_SESSION['registro_pendiente']);
+        $step = null;
+        $error = 'El codigo expiro. Solicita uno nuevo.';
+    } elseif ($codigoIngresado !== (string) ($pendiente['codigo'] ?? '')) {
+        $step = $pendiente;
+        $error = 'Codigo incorrecto.';
+    } else {
+        $response = api_request('POST', '/usuarios', $pendiente['payload']);
+
+        if ($response['ok']) {
+            unset($_SESSION['registro_pendiente']);
+            header('Location: register.php?success=1');
+            exit;
+        }
+
+        $step = $pendiente;
+        $error = $response['error'] ?: 'No se pudo registrar el usuario.';
+    }
+} elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $nombre = trim($_POST['nombre'] ?? '');
     $email = trim(strtolower($_POST['email'] ?? ''));
     $password = $_POST['password'] ?? '';
@@ -29,20 +57,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($perfilId <= 0 || $empresaId <= 0) {
         $error = 'Selecciona perfil y empresa.';
     } else {
-        $response = api_request('POST', '/usuarios', [
+        $payload = [
             'nombre' => $nombre,
             'email' => $email,
             'password' => $password,
             'perfil_id' => $perfilId,
             'empresa_id' => $empresaId,
+        ];
+        $codigo = (string) random_int(100000, 999999);
+
+        $response = api_request('POST', '/usuarios/enviar-codigo-verificacion', [
+            'nombre' => $nombre,
+            'email' => $email,
+            'codigo' => $codigo,
         ]);
 
         if ($response['ok']) {
-            header('Location: register.php?success=1');
-            exit;
+            $_SESSION['registro_pendiente'] = [
+                'payload' => $payload,
+                'codigo' => $codigo,
+                'expira' => time() + 600,
+            ];
+            $step = $_SESSION['registro_pendiente'];
+            $info = 'Enviamos un codigo de verificacion a tu correo.';
+        } else {
+            $error = $response['error'] ?: 'No se pudo enviar el codigo de verificacion.';
         }
-
-        $error = $response['error'] ?: 'No se pudo registrar el usuario.';
     }
 }
 ?>
@@ -62,6 +102,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd;
             border-radius: 8px; box-sizing: border-box;
         }
+        .verify-box { background:#eff6ff; color:#0f172a; padding:14px; border-radius:10px; margin-bottom:14px; font-size:13px; font-weight:700; text-align:center; }
+        .code-input { text-align:center; font-size:22px; letter-spacing:8px; font-weight:800; }
     </style>
 </head>
 <body>
@@ -69,6 +111,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <div class="container">
     <h2>Crear Cuenta</h2>
 
+    <?php if ($step): ?>
+    <div class="verify-box">
+        Ingresa el codigo enviado a <?= e($step['payload']['email'] ?? 'tu correo') ?>.
+    </div>
+
+    <form method="POST">
+        <input type="hidden" name="accion" value="verificar">
+        <input class="code-input" name="codigo" placeholder="000000" maxlength="6" pattern="[0-9]{6}" required>
+
+        <?php if ($info): ?>
+            <div class="alert-success show"><?= e($info) ?></div>
+        <?php endif; ?>
+        <?php if ($error): ?>
+            <div class="alert-error show"><?= e($error) ?></div>
+        <?php endif; ?>
+
+        <button type="submit">Verificar y crear cuenta</button>
+    </form>
+    <?php else: ?>
     <form method="POST">
         <input name="nombre" placeholder="Nombre completo" required>
         <input type="email" name="email" placeholder="Correo electronico" required>
@@ -103,6 +164,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         <button id="btnRegistro" type="submit">Registrar</button>
     </form>
+    <?php endif; ?>
 
     <div class="links" style="margin-top: 15px; text-align: center;">
         <a href="index.php">Volver al Login</a>
@@ -117,8 +179,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <script>
 function bindToggle(toggleId, inputId) {
-    document.getElementById(toggleId).onclick = function() {
-        const input = document.getElementById(inputId);
+    const toggle = document.getElementById(toggleId);
+    const input = document.getElementById(inputId);
+    if (!toggle || !input) return;
+
+    toggle.onclick = function() {
         input.type = input.type === "password" ? "text" : "password";
         this.textContent = input.type === "password" ? "Ver" : "Ocultar";
     };
@@ -126,14 +191,17 @@ function bindToggle(toggleId, inputId) {
 bindToggle("togglePass", "password");
 bindToggle("toggleConfirm", "confirm");
 
-document.getElementById("btnRegistro").addEventListener("click", function(e){
-    const pass = document.getElementById("password");
-    const confirm = document.getElementById("confirm");
-    if (pass.value !== confirm.value && pass.value !== "") {
-        e.preventDefault();
-        alert("Las contrasenas no coinciden.");
-    }
-});
+const btnRegistro = document.getElementById("btnRegistro");
+if (btnRegistro) {
+    btnRegistro.addEventListener("click", function(e){
+        const pass = document.getElementById("password");
+        const confirm = document.getElementById("confirm");
+        if (pass.value !== confirm.value && pass.value !== "") {
+            e.preventDefault();
+            alert("Las contrasenas no coinciden.");
+        }
+    });
+}
 </script>
 
 <?php if (isset($_GET['success'])): ?>
