@@ -21,6 +21,7 @@ $empresas = $empresasResponse['ok'] ? ($empresasResponse['data']['empresas'] ?? 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $payload = [
         'nombre' => trim($_POST['nombre'] ?? ''),
+        'apellido' => trim($_POST['apellido'] ?? ''),
         'email' => trim(strtolower($_POST['email'] ?? '')),
         'perfil_id' => (int) ($_POST['perfil_id'] ?? 0),
         'empresa_id' => (int) ($_POST['empresa_id'] ?? 0),
@@ -81,8 +82,11 @@ foreach ($perfiles as $perfil) {
     <?php if ($error): ?><div class="error-msg"><?= e($error) ?></div><?php endif; ?>
 
     <form method="POST">
-        <label>Nombre Completo</label>
+        <label>Nombre</label>
         <input type="text" name="nombre" value="<?= e($u['nombre'] ?? '') ?>" required>
+
+        <label>Apellido</label>
+        <input type="text" name="apellido" value="<?= e($u['apellido'] ?? '') ?>" required>
 
         <label>Email</label>
         <input type="email" name="email" value="<?= e($u['email'] ?? '') ?>" required>

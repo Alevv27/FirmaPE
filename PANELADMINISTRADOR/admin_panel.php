@@ -2,6 +2,8 @@
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 session_start();
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
 require_once '../includes/auth.php';
 require_once '../includes/sidebar.php';
 require_once '../includes/topbar.php';
@@ -10,7 +12,16 @@ require_admin();
 if (isset($_GET['eliminar'])) {
     $id = (int) $_GET['eliminar'];
     if ($id !== (int) current_user()['id']) {
-        api_request('DELETE', '/usuarios/' . $id);
+        $deleteResponse = api_request('DELETE', '/usuarios/' . $id);
+        if ($deleteResponse['ok']) {
+            $res = !empty($deleteResponse['data']['desactivado']) ? 'desactivado' : 'eliminado';
+            header('Location: admin_panel.php?res=' . $res);
+            exit;
+        }
+
+        $errorMsg = urlencode($deleteResponse['error'] ?: 'No se pudo eliminar el usuario.');
+        header('Location: admin_panel.php?error=' . $errorMsg);
+        exit;
     }
     header('Location: admin_panel.php?res=eliminado');
     exit;
@@ -49,6 +60,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['editar_id'])) {
 $usuariosResponse = api_request('GET', '/usuarios');
 $usuarios = $usuariosResponse['ok'] ? ($usuariosResponse['data']['usuarios'] ?? []) : [];
 $totalUsers = count($usuarios);
+
+function usuario_apellido(array $usuario): string
+{
+    return trim((string) ($usuario['apellido'] ?? $usuario['apellidos'] ?? $usuario['last_name'] ?? ''));
+}
 ?>
 
 <!DOCTYPE html>
@@ -129,7 +145,14 @@ $totalUsers = count($usuarios);
     <?php render_firmape_sidebar('admin', '../'); ?>
     <main class="module-content">
     <div class="container">
-        <?php if (isset($_GET['res'])): ?><div class="alert">Operacion realizada.</div><?php endif; ?>
+        <?php if (isset($_GET['res'])): ?>
+            <div class="alert">
+                <?= $_GET['res'] === 'desactivado'
+                    ? 'El usuario tenia procesos asociados y fue desactivado.'
+                    : 'Operacion realizada.' ?>
+            </div>
+        <?php endif; ?>
+        <?php if (isset($_GET['error'])): ?><div class="alert alert-error"><?= e($_GET['error']) ?></div><?php endif; ?>
         <?php if ($mensaje): ?><div class="alert"><?= e($mensaje) ?></div><?php endif; ?>
         <?php if ($error): ?><div class="alert alert-error"><?= e($error) ?></div><?php endif; ?>
 
@@ -177,10 +200,11 @@ $totalUsers = count($usuarios);
                     </thead>
                     <tbody>
                         <?php foreach ($usuarios as $u): ?>
+                        <?php $apellido = usuario_apellido($u); ?>
                         <tr>
                             <td><strong><?= (int) $u['id'] ?></strong></td>
                             <td><?= e($u['nombre'] ?? '') ?></td>
-                            <td><?= e($u['apellido'] ?? '') ?></td>
+                            <td><?= e($apellido) ?></td>
                             <td><?= e($u['email'] ?? '') ?></td>
                             <?php $roleClass = 'role-' . strtolower((string) ($u['perfil'] ?? '')); ?>
                             <td><span class="role-badge <?= e($roleClass) ?>"><?= e($u['perfil'] ?? '') ?></span></td>
@@ -194,7 +218,7 @@ $totalUsers = count($usuarios);
                                         onclick="abrirEditarUsuario(this)"
                                         data-id="<?= (int) $u['id'] ?>"
                                         data-nombre="<?= e($u['nombre'] ?? '') ?>"
-                                        data-apellido="<?= e($u['apellido'] ?? '') ?>"
+                                        data-apellido="<?= e($apellido) ?>"
                                         data-email="<?= e($u['email'] ?? '') ?>"
                                         data-perfil="<?= e($u['perfil'] ?? '') ?>"
                                         data-empresa="<?= (int) ($u['empresaId'] ?? 0) ?>"

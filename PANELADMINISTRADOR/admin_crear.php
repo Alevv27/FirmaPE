@@ -12,14 +12,15 @@ $empresas = $empresasResponse['ok'] ? ($empresasResponse['data']['empresas'] ?? 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $payload = [
         'nombre' => trim($_POST['nombre'] ?? ''),
+        'apellido' => trim($_POST['apellido'] ?? ''),
         'email' => trim(strtolower($_POST['email'] ?? '')),
         'password' => $_POST['password'] ?? '',
         'perfil_id' => (int) ($_POST['perfil_id'] ?? 0),
         'empresa_id' => (int) ($_POST['empresa_id'] ?? 0),
     ];
 
-    if ($payload['nombre'] === '' || !filter_var($payload['email'], FILTER_VALIDATE_EMAIL) || $payload['password'] === '') {
-        $error = 'Completa nombre, email y contrasena.';
+    if ($payload['nombre'] === '' || $payload['apellido'] === '' || !filter_var($payload['email'], FILTER_VALIDATE_EMAIL) || $payload['password'] === '') {
+        $error = 'Completa nombre, apellido, email y contrasena.';
     } else {
         $response = api_request('POST', '/usuarios', $payload);
         if ($response['ok']) {
@@ -55,6 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php if ($error): ?><div class="error-msg"><?= e($error) ?></div><?php endif; ?>
         <form method="POST">
             <label>Nombre</label><input type="text" name="nombre" required>
+            <label>Apellido</label><input type="text" name="apellido" required>
             <label>Email</label><input type="email" name="email" required>
             <label>Contrasena</label><input type="password" name="password" required>
             <label>Perfil</label>
