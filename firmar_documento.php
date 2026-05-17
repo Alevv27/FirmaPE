@@ -1,6 +1,8 @@
 <?php
 session_start();
 require_once 'includes/auth.php';
+require_once 'includes/sidebar.php';
+require_once 'includes/topbar.php';
 
 $token = $_GET['token'] ?? '';
 $error_token = '';
@@ -46,11 +48,34 @@ $esta_listo = !empty($archivo_pre_cargado) ? 'true' : 'false';
             background-size: cover;
             background-attachment: fixed;
             margin: 0;
+        }
+        body.token-mode {
+            overflow: auto;
             padding: 20px;
             display: flex;
             justify-content: center;
             min-height: 100vh;
             align-items: center;
+        }
+        body.with-sidebar { min-height: 100vh; }
+        <?php render_firmape_topbar_styles(); ?>
+        <?php render_firmape_sidebar_styles(); ?>
+        body.with-sidebar .module-content { padding-top: 30px; }
+        body.with-sidebar .container {
+            max-width: none;
+            height: 100%;
+            grid-template-columns: 360px minmax(0, 1fr);
+            align-items: start;
+        }
+        body.with-sidebar .card {
+            max-height: calc(100vh - 130px);
+            overflow: auto;
+            scrollbar-width: none;
+        }
+        body.with-sidebar .card::-webkit-scrollbar { width: 0; height: 0; }
+        body.with-sidebar #preview-container {
+            height: calc(100vh - 130px);
+            min-height: 520px;
         }
         .container { width: 100%; max-width: 1180px; display: grid; grid-template-columns: 360px 1fr; gap: 25px; }
         .card { background: white; padding: 28px; border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); height: fit-content; }
@@ -102,8 +127,13 @@ $esta_listo = !empty($archivo_pre_cargado) ? 'true' : 'false';
         .no-preview { color: #94a3b8; font-weight: 600; text-align: center; font-size: 15px; line-height: 1.4; }
     </style>
 </head>
-<body>
+<body class="<?= $token === '' ? 'with-sidebar' : 'token-mode' ?>">
 
+<?php if ($token === ''): ?>
+<?php render_firmape_topbar(); ?>
+<?php render_firmape_sidebar('firma_digital'); ?>
+<main class="module-content">
+<?php endif; ?>
 <div class="container">
     <div class="card">
         <h2>Firma Digital</h2>
@@ -184,10 +214,6 @@ $esta_listo = !empty($archivo_pre_cargado) ? 'true' : 'false';
             <button type="button" id="btnFirmar" onclick="intentarFirmar()" class="btn btn-sign" <?= $error_token ? 'disabled' : '' ?>>FIRMAR DOCUMENTO</button>
         </form>
 
-        <div class="nav-group">
-            <a href="gestion.php" class="btn btn-nav">Gestion</a>
-            <a href="principal.php" class="btn btn-nav">Panel</a>
-        </div>
     </div>
 
     <div id="preview-container">
@@ -212,6 +238,10 @@ $esta_listo = !empty($archivo_pre_cargado) ? 'true' : 'false';
         </div>
     </div>
 </div>
+<?php if ($token === ''): ?>
+</main>
+</div>
+<?php endif; ?>
 
 <script>
 let listo = <?= $esta_listo ?>;
