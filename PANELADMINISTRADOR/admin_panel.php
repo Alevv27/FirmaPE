@@ -27,6 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['editar_id'])) {
     $id = (int) $_POST['editar_id'];
     $payload = [
         'nombre' => trim($_POST['nombre'] ?? ''),
+        'apellido' => trim($_POST['apellido'] ?? ''),
         'email' => trim(strtolower($_POST['email'] ?? '')),
         'perfil_id' => (int) ($_POST['perfil_id'] ?? 0),
         'empresa_id' => (int) ($_POST['empresa_id'] ?? 0),
@@ -166,6 +167,7 @@ $totalUsers = count($usuarios);
                         <tr>
                             <th>ID</th>
                             <th>Nombre</th>
+                            <th>Apellido</th>
                             <th>Email</th>
                             <th>Perfil</th>
                             <th>Empresa</th>
@@ -178,6 +180,7 @@ $totalUsers = count($usuarios);
                         <tr>
                             <td><strong><?= (int) $u['id'] ?></strong></td>
                             <td><?= e($u['nombre'] ?? '') ?></td>
+                            <td><?= e($u['apellido'] ?? '') ?></td>
                             <td><?= e($u['email'] ?? '') ?></td>
                             <?php $roleClass = 'role-' . strtolower((string) ($u['perfil'] ?? '')); ?>
                             <td><span class="role-badge <?= e($roleClass) ?>"><?= e($u['perfil'] ?? '') ?></span></td>
@@ -191,6 +194,7 @@ $totalUsers = count($usuarios);
                                         onclick="abrirEditarUsuario(this)"
                                         data-id="<?= (int) $u['id'] ?>"
                                         data-nombre="<?= e($u['nombre'] ?? '') ?>"
+                                        data-apellido="<?= e($u['apellido'] ?? '') ?>"
                                         data-email="<?= e($u['email'] ?? '') ?>"
                                         data-perfil="<?= e($u['perfil'] ?? '') ?>"
                                         data-empresa="<?= (int) ($u['empresaId'] ?? 0) ?>"
@@ -219,8 +223,12 @@ $totalUsers = count($usuarios);
                 <input type="hidden" name="editar_id" id="editarId">
                 <div class="modal-grid">
                     <div class="modal-field full">
-                        <label>Nombre completo</label>
+                        <label>Nombre</label>
                         <input type="text" name="nombre" id="editarNombre" required>
+                    </div>
+                    <div class="modal-field full">
+                        <label>Apellido</label>
+                        <input type="text" name="apellido" id="editarApellido" required>
                     </div>
                     <div class="modal-field full">
                         <label>Email</label>
@@ -265,6 +273,7 @@ $totalUsers = count($usuarios);
     function abrirEditarUsuario(button) {
         document.getElementById('editarId').value = button.dataset.id || '';
         document.getElementById('editarNombre').value = button.dataset.nombre || '';
+        document.getElementById('editarApellido').value = button.dataset.apellido || '';
         document.getElementById('editarEmail').value = button.dataset.email || '';
         document.getElementById('editarEmpresa').value = button.dataset.empresa || '';
         document.getElementById('editarActivo').checked = button.dataset.activo === '1';

@@ -40,6 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['accion'] ?? '') === 'verif
     }
 } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $nombre = trim($_POST['nombre'] ?? '');
+    $apellido = trim($_POST['apellido'] ?? '');
     $email = trim(strtolower($_POST['email'] ?? ''));
     $password = $_POST['password'] ?? '';
     $confirm = $_POST['confirm'] ?? '';
@@ -48,6 +49,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['accion'] ?? '') === 'verif
 
     if ($nombre === '') {
         $error = 'El nombre es obligatorio.';
+    } elseif ($apellido === '') {
+        $error = 'El apellido es obligatorio.';
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $error = 'Correo invalido.';
     } elseif ($password !== $confirm) {
@@ -59,6 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['accion'] ?? '') === 'verif
     } else {
         $payload = [
             'nombre' => $nombre,
+            'apellido' => $apellido,
             'email' => $email,
             'password' => $password,
             'perfil_id' => $perfilId,
@@ -104,6 +108,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['accion'] ?? '') === 'verif
         }
         .verify-box { background:#eff6ff; color:#0f172a; padding:14px; border-radius:10px; margin-bottom:14px; font-size:13px; font-weight:700; text-align:center; }
         .code-input { text-align:center; font-size:22px; letter-spacing:8px; font-weight:800; }
+        .name-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+        .name-grid input { width:100%; }
+        @media (max-width: 560px) {
+            .name-grid { grid-template-columns:1fr; gap:0; }
+        }
     </style>
 </head>
 <body>
@@ -131,7 +140,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['accion'] ?? '') === 'verif
     </form>
     <?php else: ?>
     <form method="POST">
-        <input name="nombre" placeholder="Nombre completo" required>
+        <div class="name-grid">
+            <input name="nombre" placeholder="Nombre" required>
+            <input name="apellido" placeholder="Apellido" required>
+        </div>
         <input type="email" name="email" placeholder="Correo electronico" required>
 
         <select name="perfil_id" required>
