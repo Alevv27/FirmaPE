@@ -243,6 +243,7 @@ let paginasTotal = 1;
 let firmaLista = false;
 let modoFirma = 'normal';
 let submodoNormal = 'dibujo';
+const firmaConToken = <?= $token !== '' ? 'true' : 'false' ?>;
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
@@ -577,8 +578,13 @@ async function enviarFirma() {
         a.remove();
         URL.revokeObjectURL(url);
 
-        cerrarFlujoFirmado();
-        mostrarToast('success', 'El proceso fue cerrado correctamente.');
+        if (firmaConToken) {
+            cerrarFlujoFirmado();
+            mostrarToast('success', 'El proceso fue cerrado correctamente.');
+        } else {
+            prepararNuevaFirma();
+            mostrarToast('success', 'Documento firmado correctamente. Puedes seguir firmando desde el modulo.');
+        }
     } catch (error) {
         btn.disabled = false;
         btn.textContent = 'FIRMAR DOCUMENTO';
@@ -590,6 +596,18 @@ function cerrarFlujoFirmado() {
     document.querySelector('.signature-tools').style.display = 'none';
     document.getElementById('formFirma').style.display = 'none';
     quitarFirma();
+}
+
+function prepararNuevaFirma() {
+    const btn = document.getElementById('btnFirmar');
+    btn.disabled = false;
+    btn.textContent = 'FIRMAR DOCUMENTO';
+    quitarFirma();
+    limpiarDibujo();
+
+    if (modoFirma === 'servidor') {
+        cambiarModoFirma('normal');
+    }
 }
 
 function limpiarErrorFirma(message) {

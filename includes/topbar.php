@@ -10,7 +10,7 @@ function render_firmape_topbar_styles(): void
         height: 67px;
         padding: 12px 40px;
         display: grid;
-        grid-template-columns: 1fr 2fr 1fr;
+        grid-template-columns: minmax(210px, 1fr) minmax(320px, 2fr) minmax(360px, 1fr);
         align-items: center;
         background: #fff;
         box-shadow: 0 4px 12px rgba(0,0,0,.15);
@@ -23,8 +23,9 @@ function render_firmape_topbar_styles(): void
     .firmape-topbar-logo img { width:38px; }
     .firmape-topbar-logo h3 { margin:0; font-size:22px; letter-spacing:1px; font-weight:900; }
     .firmape-topbar-clock { text-align:center; font-size:15px; font-weight:700; color:#111827; }
-    .firmape-topbar-user { display:flex; align-items:center; justify-content:flex-end; gap:18px; }
-    .firmape-profile-link { text-decoration:none; color:#000; display:flex; align-items:center; gap:10px; font-size:15px; border:0; background:transparent; padding:0; cursor:pointer; font-family:inherit; }
+    .firmape-topbar-user { display:flex; align-items:center; justify-content:flex-end; gap:18px; min-width:0; white-space:nowrap; }
+    .firmape-profile-link { text-decoration:none; color:#000; display:flex; align-items:center; gap:10px; font-size:15px; border:0; background:transparent; padding:0; cursor:pointer; font-family:inherit; white-space:nowrap; }
+    .firmape-profile-link span { display:inline-flex; align-items:center; gap:5px; white-space:nowrap; }
     .firmape-user-pill { background:#f0f0f0; padding:7px 11px; border-radius:8px; border:1px solid #ddd; font-size:15px; }
     .firmape-logout { background:#ff4d4d; color:white; padding:9px 16px; border-radius:6px; text-decoration:none; font-weight:900; font-size:12px; }
     .firmape-badge { font-size:10px; color:white; padding:2px 6px; border-radius:4px; margin-left:5px; vertical-align:middle; text-transform:uppercase; }

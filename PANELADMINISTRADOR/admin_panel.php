@@ -58,6 +58,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['editar_id'])) {
     }
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['crear_usuario'])) {
+    $payload = [
+        'nombre' => trim($_POST['nombre'] ?? ''),
+        'apellido' => trim($_POST['apellido'] ?? ''),
+        'email' => trim(strtolower($_POST['email'] ?? '')),
+        'password' => $_POST['password'] ?? '',
+        'perfil_id' => (int) ($_POST['perfil_id'] ?? 0),
+        'empresa_id' => (int) ($_POST['empresa_id'] ?? 0),
+    ];
+
+    if ($payload['nombre'] === '' || $payload['apellido'] === '' || !filter_var($payload['email'], FILTER_VALIDATE_EMAIL) || $payload['password'] === '') {
+        $error = 'Completa nombre, apellido, email y contrasena.';
+    } else {
+        $response = api_request('POST', '/usuarios', $payload);
+        if ($response['ok']) {
+            $mensaje = 'Usuario creado correctamente.';
+        } else {
+            $error = $response['error'] ?: 'No se pudo crear el usuario.';
+        }
+    }
+}
+
 $usuariosResponse = api_request('GET', '/usuarios');
 $usuarios = $usuariosResponse['ok'] ? ($usuariosResponse['data']['usuarios'] ?? []) : [];
 $totalUsers = count($usuarios);
@@ -180,7 +202,7 @@ function usuario_apellido(array $usuario): string
                 <h1>Administracion</h1>
                 <p>Gestiona usuarios, perfiles y acceso a los modulos.</p>
             </div>
-            <a href="admin_crear.php" class="btn btn-dark">+ Nuevo Usuario</a>
+            <button type="button" class="btn btn-dark" onclick="abrirCrearUsuario()">+ Nuevo Usuario</button>
         </div>
 
         <div class="stats">
@@ -256,6 +278,58 @@ function usuario_apellido(array $usuario): string
     </main>
     </div>
 
+    <div class="modal-backdrop" id="modalCrearUsuario" onclick="cerrarCrearUsuario(event)">
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalCrearTitulo">
+            <div class="modal-head">
+                <h2 id="modalCrearTitulo">Nuevo Usuario</h2>
+                <button type="button" class="modal-close" onclick="cerrarCrearUsuario()">×</button>
+            </div>
+            <form method="POST" class="modal-body">
+                <input type="hidden" name="crear_usuario" value="1">
+                <div class="modal-grid">
+                    <div class="modal-field full">
+                        <label>Nombre</label>
+                        <input type="text" name="nombre" required>
+                    </div>
+                    <div class="modal-field full">
+                        <label>Apellido</label>
+                        <input type="text" name="apellido" required>
+                    </div>
+                    <div class="modal-field full">
+                        <label>Email</label>
+                        <input type="email" name="email" required>
+                    </div>
+                    <div class="modal-field full">
+                        <label>Contrasena</label>
+                        <input type="password" name="password" required>
+                    </div>
+                    <div class="modal-field">
+                        <label>Perfil</label>
+                        <select name="perfil_id" required>
+                            <option value="">Seleccione</option>
+                            <?php foreach ($perfiles as $perfil): ?>
+                                <option value="<?= (int) $perfil['id'] ?>"><?= e($perfil['codigo']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="modal-field">
+                        <label>Empresa</label>
+                        <select name="empresa_id" required>
+                            <option value="">Seleccione</option>
+                            <?php foreach ($empresas as $empresa): ?>
+                                <option value="<?= (int) $empresa['id'] ?>"><?= e($empresa['nombre']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-cancel" onclick="cerrarCrearUsuario()">Cancelar</button>
+                    <button type="submit" class="btn btn-dark">Crear Usuario</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div class="modal-backdrop" id="modalEditarUsuario" onclick="cerrarEditarUsuario(event)">
         <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalEditarTitulo">
             <div class="modal-head">
@@ -313,6 +387,15 @@ function usuario_apellido(array $usuario): string
     </div>
 
     <script>
+    function abrirCrearUsuario() {
+        document.getElementById('modalCrearUsuario').classList.add('show');
+    }
+
+    function cerrarCrearUsuario(event) {
+        if (event && event.target.id !== 'modalCrearUsuario') return;
+        document.getElementById('modalCrearUsuario').classList.remove('show');
+    }
+
     function abrirEditarUsuario(button) {
         document.getElementById('editarId').value = button.dataset.id || '';
         document.getElementById('editarNombre').value = button.dataset.nombre || '';
