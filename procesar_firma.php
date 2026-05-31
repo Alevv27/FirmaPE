@@ -5,7 +5,6 @@ session_start();
 require __DIR__ . '/tcpdf/tcpdf.php';
 require __DIR__ . '/fpdi/src/autoload.php';
 require_once __DIR__ . '/includes/auth.php';
-require_module('FIRMAR');
 
 use setasign\Fpdi\TcpdfFpdi;
 
@@ -15,6 +14,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 $pdfFile = "";
 $id_doc = $_POST['id_doc'] ?? null;
+$token = $_POST['token'] ?? '';
+
+if ($token === '') {
+    require_module('FIRMAR');
+}
 
 if (isset($_FILES['pdf']) && $_FILES['pdf']['size'] > 0) {
     $pdfFile = $_FILES['pdf']['tmp_name'];
@@ -32,7 +36,6 @@ if (empty($pdfFile) || !file_exists($pdfFile)) {
 }
 
 $tipoFirma = $_POST['tipoFirma'] ?? 'normal';
-$token = $_POST['token'] ?? '';
 $pX = isset($_POST['pX']) ? floatval($_POST['pX']) : 0;
 $pY = isset($_POST['pY']) ? floatval($_POST['pY']) : 0;
 $pW = isset($_POST['pW']) ? floatval($_POST['pW']) : 0;
@@ -89,7 +92,7 @@ try {
         $realW = max(25, min($realW, $size['width'] * 0.75));
 
         if ($tipoFirma === 'servidor') {
-            $realH = max(42, $realW * 0.62);
+            $realH = max(28, $realW * 0.38);
             if ($realX + $realW > $size['width']) {
                 $realX = $size['width'] - $realW;
             }
@@ -98,27 +101,41 @@ try {
             }
 
             $usuario = current_user() ?: [];
+            if ($token !== '') {
+                $tokenResponse = api_request('GET', '/firma/token/' . rawurlencode($token));
+                if (!$tokenResponse['ok']) {
+                    die("No se pudo validar el firmante del enlace: " . ($tokenResponse['error'] ?? 'Token invalido'));
+                }
+                $usuario = [
+                    'nombre' => $tokenResponse['data']['nombreCompleto'] ?? $tokenResponse['data']['nombre'] ?? 'USUARIO DEL SISTEMA',
+                    'email' => $tokenResponse['data']['email'] ?? '',
+                    'dni' => $tokenResponse['data']['dni'] ?? '',
+                ];
+            }
+
             $nombre = strtoupper($usuario['nombre'] ?? 'USUARIO DEL SISTEMA');
             $email = $usuario['email'] ?? '';
+            $dni = $usuario['dni'] ?? '';
 
             $pdf->SetFillColor(241, 245, 249);
             $pdf->SetDrawColor(108, 92, 231);
             $pdf->SetLineWidth(0.6);
             $pdf->Rect($realX, $realY, $realW, $realH, 'DF');
 
-            $fontTitle = max(6, min(9, $realW / 17));
-            $fontBody = max(5, min(7, $realW / 21));
-            $lineH = max(2.8, $fontBody * 0.55);
+            $fontTitle = max(5.5, min(7, $realW / 20));
+            $fontBody = max(4.2, min(5.4, $realW / 27));
+            $lineH = max(2.2, $fontBody * 0.55);
 
             $pdf->SetTextColor(108, 92, 231);
             $pdf->SetFont('helvetica', 'B', $fontTitle);
-            $pdf->SetXY($realX, $realY + 3);
-            $pdf->MultiCell($realW, 4, 'FIRMADO ELECTRONICAMENTE', 0, 'C');
+            $pdf->SetXY($realX, $realY + 2.5);
+            $pdf->MultiCell($realW, 3.5, 'FIRMADO ELECTRONICAMENTE', 0, 'C');
 
             $pdf->SetTextColor(30, 41, 59);
             $pdf->SetFont('helvetica', '', $fontBody);
-            $pdf->SetXY($realX + 4, $realY + 12);
+            $pdf->SetXY($realX + 4, $realY + 9);
             $txt = "FIRMANTE: " . $nombre . "\n" .
+                ($dni !== "" ? "DNI: " . $dni . "\n" : "") .
                 "EMAIL: " . $email . "\n" .
                 "FECHA: " . date('d/m/Y H:i:s') . "\n" .
                 "MOTIVO: Aprobacion de documento\n" .

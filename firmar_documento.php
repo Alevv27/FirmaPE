@@ -9,6 +9,7 @@ $error_token = '';
 $archivo_pre_cargado = '';
 $id_doc = '';
 $firma_config = ['pagina' => 1, 'x' => null, 'y' => null, 'w' => null];
+$firmante_token = null;
 
 if ($token !== '') {
     $tokenResponse = api_request('GET', '/firma/token/' . rawurlencode($token));
@@ -19,6 +20,11 @@ if ($token !== '') {
         $archivo_pre_cargado = (string) ($documento['rutaArchivo'] ?? '');
         $id_doc = (string) ($dataToken['procesoId'] ?? '');
         $firma_config = $documento['firma'] ?? $firma_config;
+        $firmante_token = [
+            'nombre' => (string) ($dataToken['nombreCompleto'] ?? $dataToken['nombre'] ?? 'USUARIO DEL SISTEMA'),
+            'email' => (string) ($dataToken['email'] ?? ''),
+            'dni' => (string) ($dataToken['dni'] ?? ''),
+        ];
     } else {
         $error_token = $tokenResponse['error'] ?: 'El enlace de firma no es valido.';
     }
@@ -30,6 +36,10 @@ if ($token !== '') {
 }
 
 $esta_listo = !empty($archivo_pre_cargado) ? 'true' : 'false';
+$usuario_sello = $firmante_token ?: (current_user() ?? []);
+$nombre_sello = strtoupper((string) ($usuario_sello['nombre'] ?? 'USUARIO DEL SISTEMA'));
+$email_sello = (string) ($usuario_sello['email'] ?? '');
+$dni_sello = (string) ($usuario_sello['dni'] ?? '');
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -253,8 +263,9 @@ $esta_listo = !empty($archivo_pre_cargado) ? 'true' : 'false';
                 <img id="firmaPreview" alt="Firma">
                 <div id="serverStamp">
                     <strong>FIRMADO ELECTRONICAMENTE</strong>
-                    FIRMANTE: <?= e(strtoupper(current_user()['nombre'] ?? 'USUARIO DEL SISTEMA')) ?><br>
-                    EMAIL: <?= e(current_user()['email'] ?? '') ?><br>
+                    FIRMANTE: <?= e($nombre_sello) ?><br>
+                    <?php if ($dni_sello !== ''): ?>DNI: <?= e($dni_sello) ?><br><?php endif; ?>
+                    EMAIL: <?= e($email_sello) ?><br>
                     FECHA: <?= e(date('d/m/Y H:i:s')) ?><br>
                     MOTIVO: Aprobacion de documento<br>
                     UBICACION: LIMA, PERU
