@@ -122,6 +122,12 @@ $toast = toast_message($mensaje, $tipoMensaje === 'success' ? 'success' : 'error
         .field input, .field textarea, .field select { width:100%; padding:12px 10px; border:0; border-bottom:1px solid #94a3b8; box-sizing:border-box; outline:none; background:white; font-size:14px; }
         .field input:focus, .field textarea:focus, .field select:focus { border-bottom-color:#0f69b5; box-shadow:0 1px 0 #0f69b5; }
         .field textarea { min-height:72px; resize:vertical; }
+        .firmante-picker { display:grid; grid-template-columns:1fr auto; gap:10px; align-items:center; border-bottom:1px solid #94a3b8; padding:4px 0 8px; min-height:49px; }
+        .firmante-selected { min-width:0; color:#64748b; font-size:14px; }
+        .firmante-selected strong { display:block; color:#0f172a; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .firmante-selected span { display:block; color:#64748b; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px; }
+        .btn-add-firmante { border:0; border-radius:8px; background:#0f69b5; color:white; padding:11px 14px; cursor:pointer; font-weight:900; white-space:nowrap; }
+        .btn-add-firmante:hover { background:#0b5a9d; }
         .full { grid-column: 1 / -1; }
         .section-label { display:flex; align-items:center; gap:10px; font-size:22px; font-weight:900; margin:8px 0 10px; }
         .section-label .doc-icon { font-size:30px; line-height:1; }
@@ -149,11 +155,26 @@ $toast = toast_message($mensaje, $tipoMensaje === 'success' ? 'success' : 'error
         .modal-overlay { position:fixed; inset:0; background:rgba(15,23,42,.55); display:none; align-items:center; justify-content:center; padding:24px; z-index:1000; }
         .modal-overlay.show { display:flex; }
         .modal-card { width:min(1120px, 96vw); max-height:92vh; background:white; border-radius:12px; box-shadow:0 25px 60px rgba(15,23,42,.35); display:flex; flex-direction:column; overflow:hidden; }
+        .modal-card.firmante-modal { width:min(920px, 96vw); }
         .modal-head { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 20px; border-bottom:1px solid #e2e8f0; }
         .modal-head h3 { margin:0; color:#0f172a; }
+        .modal-head p { margin:4px 0 0; color:#64748b; font-size:14px; }
         .modal-close { width:36px; height:36px; border:0; border-radius:8px; background:#f1f5f9; font-size:22px; cursor:pointer; }
         .modal-actions { display:flex; justify-content:flex-end; gap:10px; padding:14px 20px; border-top:1px solid #e2e8f0; }
         .btn-muted { background:#64748b; color:white; border:none; padding:12px 18px; border-radius:6px; cursor:pointer; font-weight:800; }
+        .firmante-body { padding:18px 20px; display:grid; gap:14px; overflow:auto; }
+        .search-box { position:relative; }
+        .search-box input { width:100%; border:1px solid #cbd5e1; border-radius:8px; padding:13px 14px; font-size:15px; outline:none; }
+        .search-box input:focus { border-color:#0f69b5; box-shadow:0 0 0 3px rgba(15,105,181,.12); }
+        .firmante-summary { display:flex; justify-content:space-between; align-items:center; gap:12px; background:#f1f5f9; border-radius:8px; padding:12px 14px; color:#334155; font-weight:800; font-size:13px; }
+        .firmante-list { display:grid; gap:8px; max-height:440px; overflow:auto; padding-right:4px; }
+        .firmante-item { width:100%; border:1px solid #e2e8f0; background:#fff; border-radius:10px; padding:12px; display:grid; grid-template-columns:44px 1fr auto; align-items:center; gap:12px; cursor:pointer; text-align:left; }
+        .firmante-item:hover, .firmante-item.selected { border-color:#60a5fa; background:#eff6ff; }
+        .firmante-avatar { width:44px; height:44px; border-radius:50%; background:#e0f2fe; color:#0f69b5; display:flex; align-items:center; justify-content:center; font-weight:900; }
+        .firmante-name { color:#0f172a; font-weight:900; margin-bottom:4px; }
+        .firmante-meta { color:#64748b; font-size:13px; }
+        .firmante-role { border-radius:999px; background:#dcfce7; color:#047857; padding:7px 10px; font-size:11px; font-weight:900; white-space:nowrap; }
+        .firmante-empty { padding:22px; text-align:center; color:#64748b; background:#f8fafc; border-radius:10px; border:1px dashed #cbd5e1; }
         .preview-wrap { display:grid; gap:14px; grid-template-columns: 260px 1fr; align-items:start; padding:18px 20px; overflow:auto; }
         .preview-controls { display:grid; gap:10px; }
         .config-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
@@ -192,12 +213,14 @@ $toast = toast_message($mensaje, $tipoMensaje === 'success' ? 'success' : 'error
             </div>
             <div class="field">
                 <label>Firmante:</label>
-                <select name="firmante_id" required>
-                    <option value="">-- Seleccione --</option>
-                    <?php foreach ($firmantes as $f): ?>
-                        <option value="<?= (int) $f['id'] ?>"><?= e($f['nombre']) ?> - <?= e($f['email']) ?></option>
-                    <?php endforeach; ?>
-                </select>
+                <input type="hidden" name="firmante_id" id="firmanteId" value="">
+                <div class="firmante-picker">
+                    <div id="firmanteSeleccionado" class="firmante-selected">
+                        <strong>Sin firmante seleccionado</strong>
+                        <span>Agrega un firmante para este proceso.</span>
+                    </div>
+                    <button type="button" class="btn-add-firmante" onclick="abrirFirmanteModal()">Agregar firmante</button>
+                </div>
             </div>
             <div class="field full">
                 <label>Descripcion</label>
@@ -253,6 +276,27 @@ $toast = toast_message($mensaje, $tipoMensaje === 'success' ? 'success' : 'error
     <?php endif; ?>
 </div>
 </main>
+<div id="firmanteModal" class="modal-overlay" aria-hidden="true">
+    <div class="modal-card firmante-modal" role="dialog" aria-modal="true" aria-labelledby="firmanteModalTitle">
+        <div class="modal-head">
+            <div>
+                <h3 id="firmanteModalTitle">Agregar firmante</h3>
+                <p>Busca por nombre, apellido, DNI o correo.</p>
+            </div>
+            <button type="button" class="modal-close" onclick="cerrarFirmanteModal()">×</button>
+        </div>
+        <div class="firmante-body">
+            <div class="search-box">
+                <input type="search" id="buscarFirmante" placeholder="Buscar firmante..." autocomplete="off">
+            </div>
+            <div class="firmante-summary">
+                <span id="firmanteResumen">0 firmantes disponibles</span>
+                <button type="button" class="btn-muted" onclick="limpiarFirmanteSeleccionado()">Limpiar seleccion</button>
+            </div>
+            <div id="firmanteLista" class="firmante-list"></div>
+        </div>
+    </div>
+</div>
 <div id="firmaConfigModal" class="modal-overlay" aria-hidden="true">
     <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="firmaConfigTitle">
         <div class="modal-head">
@@ -315,6 +359,8 @@ $toast = toast_message($mensaje, $tipoMensaje === 'success' ? 'success' : 'error
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
+const firmantesDisponibles = <?= json_encode(array_values($firmantes), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+let firmanteSeleccionadoId = '';
 let gestionPdfDoc = null;
 let gestionPagina = 1;
 let gestionTotal = 1;
@@ -332,6 +378,110 @@ const documentRowProceso = document.getElementById('documentRowProceso');
 const documentNameProceso = document.getElementById('documentNameProceso');
 const documentSizeProceso = document.getElementById('documentSizeProceso');
 const firmaConfigModal = document.getElementById('firmaConfigModal');
+const firmanteModal = document.getElementById('firmanteModal');
+const buscarFirmante = document.getElementById('buscarFirmante');
+const firmanteLista = document.getElementById('firmanteLista');
+const firmanteResumen = document.getElementById('firmanteResumen');
+const firmanteSeleccionado = document.getElementById('firmanteSeleccionado');
+const firmanteIdInput = document.getElementById('firmanteId');
+
+function inicialesFirmante(firmante) {
+    const nombre = `${firmante.nombre || ''} ${firmante.apellido || ''}`.trim();
+    return nombre
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((parte) => parte.charAt(0).toUpperCase())
+        .join('') || 'F';
+}
+
+function textoFirmante(firmante) {
+    return `${firmante.nombre || ''} ${firmante.apellido || ''} ${firmante.dni || ''} ${firmante.email || ''}`.toLowerCase();
+}
+
+function nombreFirmante(firmante) {
+    return `${firmante.nombre || ''} ${firmante.apellido || ''}`.trim() || 'Firmante';
+}
+
+function abrirFirmanteModal() {
+    firmanteModal.classList.add('show');
+    firmanteModal.setAttribute('aria-hidden', 'false');
+    renderFirmantes();
+    setTimeout(() => buscarFirmante?.focus(), 50);
+}
+
+function cerrarFirmanteModal() {
+    firmanteModal.classList.remove('show');
+    firmanteModal.setAttribute('aria-hidden', 'true');
+}
+
+function renderFirmantes() {
+    const query = (buscarFirmante?.value || '').trim().toLowerCase();
+    const filtrados = firmantesDisponibles.filter((firmante) => textoFirmante(firmante).includes(query));
+    firmanteResumen.textContent = `${filtrados.length} firmante${filtrados.length === 1 ? '' : 's'} disponible${filtrados.length === 1 ? '' : 's'}`;
+
+    if (!filtrados.length) {
+        firmanteLista.innerHTML = '<div class="firmante-empty">No hay firmantes para la busqueda ingresada.</div>';
+        return;
+    }
+
+    firmanteLista.innerHTML = filtrados.map((firmante) => {
+        const id = String(firmante.id);
+        const selected = id === String(firmanteSeleccionadoId) ? ' selected' : '';
+        const dni = firmante.dni || 'Sin DNI';
+        const email = firmante.email || 'Sin correo';
+        return `
+            <button type="button" class="firmante-item${selected}" data-id="${id}">
+                <span class="firmante-avatar">${inicialesFirmante(firmante)}</span>
+                <span>
+                    <span class="firmante-name">${escapeHtml(nombreFirmante(firmante))}</span>
+                    <span class="firmante-meta">${escapeHtml(dni)} - ${escapeHtml(email)}</span>
+                </span>
+                <span class="firmante-role">FIRMANTE</span>
+            </button>
+        `;
+    }).join('');
+}
+
+function escapeHtml(value) {
+    const div = document.createElement('div');
+    div.textContent = value;
+    return div.innerHTML;
+}
+
+function seleccionarFirmante(id) {
+    const firmante = firmantesDisponibles.find((item) => String(item.id) === String(id));
+    if (!firmante) return;
+    firmanteSeleccionadoId = String(firmante.id);
+    firmanteIdInput.value = firmanteSeleccionadoId;
+    firmanteSeleccionado.innerHTML = `
+        <strong>${escapeHtml(nombreFirmante(firmante))}</strong>
+        <span>${escapeHtml(firmante.dni || 'Sin DNI')} - ${escapeHtml(firmante.email || 'Sin correo')}</span>
+    `;
+    cerrarFirmanteModal();
+    renderFirmantes();
+}
+
+function limpiarFirmanteSeleccionado() {
+    firmanteSeleccionadoId = '';
+    firmanteIdInput.value = '';
+    firmanteSeleccionado.innerHTML = '<strong>Sin firmante seleccionado</strong><span>Agrega un firmante para este proceso.</span>';
+    renderFirmantes();
+}
+
+buscarFirmante?.addEventListener('input', renderFirmantes);
+firmanteLista?.addEventListener('click', (event) => {
+    const item = event.target.closest('.firmante-item');
+    if (item) seleccionarFirmante(item.dataset.id);
+});
+
+document.querySelector('.process-form')?.addEventListener('submit', (event) => {
+    if (!firmanteIdInput.value) {
+        event.preventDefault();
+        Swal.fire({ toast:true, position:'top-end', icon:'warning', title:'Seleccione un firmante para crear el proceso.', showConfirmButton:false, timer:2800 });
+        abrirFirmanteModal();
+    }
+});
 
 if (pdfInputGestion) {
     pdfInputGestion.addEventListener('change', async function() {
