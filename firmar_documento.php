@@ -109,6 +109,7 @@ $dni_sello = (string) ($usuario_sello['dni'] ?? '');
         .field-label { font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 6px; }
         .field-select { width:100%; padding:10px 11px; border:1px solid #cbd5e1; border-radius:10px; background:#fff; color:#1e293b; font-size:13px; font-weight:700; outline:none; }
         .field-select:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(108,92,231,.14); }
+        .field-select:disabled, .page-custom-input:disabled, .range:disabled { opacity:.62; cursor:not-allowed; background:#f1f5f9; }
         .page-custom-input { display:none; width:100%; margin-top:8px; padding:10px 11px; border:1px solid #cbd5e1; border-radius:10px; font-size:13px; font-weight:700; outline:none; }
         .page-custom-input.show { display:block; }
         .page-custom-input:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(108,92,231,.14); }
@@ -290,6 +291,7 @@ let firmaLista = false;
 let modoFirma = 'normal';
 let submodoNormal = 'dibujo';
 const firmaConToken = <?= $token !== '' ? 'true' : 'false' ?>;
+const firmaPosicionBloqueada = firmaConToken && firmaConfig.x !== null && firmaConfig.y !== null && firmaConfig.w !== null;
 let paginaInputTimer = null;
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -366,7 +368,18 @@ async function cargarPdf(url) {
         const inputPersonalizado = document.getElementById('paginaFirmaPersonalizada');
         inputPersonalizado.max = paginasTotal;
         inputPersonalizado.value = Math.min(Math.max(Number(inputPersonalizado.value || paginaActual), 1), paginasTotal);
+        if (firmaConfig.modo) {
+            const modoInicial = ['actual', 'primera', 'ultima', 'personalizada', 'todas'].includes(firmaConfig.modo)
+                ? firmaConfig.modo
+                : 'actual';
+            document.getElementById('paginaFirmaModoSelect').value = modoInicial;
+            document.getElementById('paginaFirmaModo').value = modoInicial;
+            inputPersonalizado.classList.toggle('show', modoInicial === 'personalizada');
+            if (modoInicial === 'personalizada') inputPersonalizado.value = paginaActual;
+        }
         await renderPagina();
+        await aplicarPaginaFirmaModo();
+        aplicarBloqueoFirmaConfigurada();
         listo = true;
     } catch (error) {
         mostrarToast('error', 'No se pudo visualizar el PDF.');
@@ -402,6 +415,25 @@ function cambiarPagina(delta) {
         document.getElementById('paginaFirmaPersonalizada').value = paginaActual;
     }
     renderPagina();
+}
+
+function aplicarBloqueoFirmaConfigurada() {
+    if (!firmaPosicionBloqueada) return;
+
+    const controlesBloqueados = [
+        'posicionFirma',
+        'paginaFirmaModoSelect',
+        'paginaFirmaPersonalizada',
+        'firmaSize',
+    ];
+
+    controlesBloqueados.forEach((id) => {
+        const control = document.getElementById(id);
+        if (control) {
+            control.disabled = true;
+            control.title = 'La posicion fue configurada por el gestor del documento.';
+        }
+    });
 }
 
 canvasFirma.addEventListener('mousedown', (e) => {
@@ -594,6 +626,7 @@ function quitarFirma() {
 }
 
 document.getElementById('firmaSize').addEventListener('input', function() {
+    if (firmaPosicionBloqueada) return;
     firmaBox.style.width = this.value + 'px';
     aplicarPosicionFirma();
 });
@@ -612,6 +645,7 @@ document.getElementById('paginaFirmaPersonalizada').addEventListener('input', fu
 
 firmaBox.addEventListener('mousedown', function(e) {
     if (e.target.classList.contains('firma-remove')) return;
+    if (firmaPosicionBloqueada) return;
     e.preventDefault();
     document.getElementById('posicionFirma').value = 'manual';
     const startX = e.clientX;
