@@ -37,6 +37,7 @@ $pX = isset($_POST['pX']) ? floatval($_POST['pX']) : 0;
 $pY = isset($_POST['pY']) ? floatval($_POST['pY']) : 0;
 $pW = isset($_POST['pW']) ? floatval($_POST['pW']) : 0;
 $paginaFirma = isset($_POST['paginaFirma']) ? (int) $_POST['paginaFirma'] : 0;
+$paginaFirmaModo = $_POST['paginaFirmaModo'] ?? 'actual';
 $base64 = $_POST['firmaBase64'] ?? '';
 $imgFile = null;
 
@@ -58,8 +59,17 @@ $pdf->setPrintFooter(false);
 
 try {
     $pageCount = $pdf->setSourceFile($pdfFile);
-    if ($paginaFirma < 1 || $paginaFirma > $pageCount) {
-        $paginaFirma = $pageCount;
+    if ($paginaFirmaModo === 'primera') {
+        $paginasAFirmar = [1];
+    } elseif ($paginaFirmaModo === 'ultima') {
+        $paginasAFirmar = [$pageCount];
+    } elseif ($paginaFirmaModo === 'todas') {
+        $paginasAFirmar = range(1, $pageCount);
+    } else {
+        if ($paginaFirma < 1 || $paginaFirma > $pageCount) {
+            $paginaFirma = $pageCount;
+        }
+        $paginasAFirmar = [$paginaFirma];
     }
 
     for ($i = 1; $i <= $pageCount; $i++) {
@@ -69,7 +79,7 @@ try {
         $pdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
         $pdf->useTemplate($tpl);
 
-        if ($i !== $paginaFirma) {
+        if (!in_array($i, $paginasAFirmar, true)) {
             continue;
         }
 

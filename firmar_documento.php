@@ -97,6 +97,12 @@ $esta_listo = !empty($archivo_pre_cargado) ? 'true' : 'false';
         .info-carga { background: #ecfdf5; border: 1px solid #a7f3d0; padding: 12px; border-radius: 12px; margin-bottom: 16px; font-size: 12px; color: #065f46; display: flex; align-items: center; gap: 8px; }
         .signature-tools { display: grid; gap: 10px; margin-bottom: 14px; }
         .field-label { font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 6px; }
+        .field-select { width:100%; padding:10px 11px; border:1px solid #cbd5e1; border-radius:10px; background:#fff; color:#1e293b; font-size:13px; font-weight:700; outline:none; }
+        .field-select:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(108,92,231,.14); }
+        .page-custom-input { display:none; width:100%; margin-top:8px; padding:10px 11px; border:1px solid #cbd5e1; border-radius:10px; font-size:13px; font-weight:700; outline:none; }
+        .page-custom-input.show { display:block; }
+        .page-custom-input:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(108,92,231,.14); }
+        .select-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
         #canvasFirma { width: 100%; height: 120px; border: 2px dashed #93c5fd; border-radius: 12px; background: white; cursor: crosshair; }
         .tool-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .range { width: 100%; }
@@ -183,6 +189,34 @@ $esta_listo = !empty($archivo_pre_cargado) ? 'true' : 'false';
                 <div class="field-label">Tamaño del estampado</div>
                 <input class="range" type="range" id="firmaSize" min="80" max="260" value="150">
             </div>
+            <div class="select-row">
+                <div>
+                    <div class="field-label">Posicion Firma</div>
+                    <select id="posicionFirma" class="field-select">
+                        <option value="manual">Manual</option>
+                        <option value="superior_derecha">Superior Derecha</option>
+                        <option value="superior_izquierda">Superior Izquierda</option>
+                        <option value="superior_medio">Superior Medio</option>
+                        <option value="medio_derecha">Medio Derecha</option>
+                        <option value="medio_izquierda">Medio Izquierda</option>
+                        <option value="medio_medio">Medio Medio</option>
+                        <option value="inferior_derecha">Inferior Derecha</option>
+                        <option value="inferior_izquierda">Inferior Izquierda</option>
+                        <option value="inferior_medio">Inferior Medio</option>
+                    </select>
+                </div>
+                <div>
+                    <div class="field-label">Pagina Firma</div>
+                    <select id="paginaFirmaModoSelect" class="field-select">
+                        <option value="actual">Pagina visible</option>
+                        <option value="primera">Primera pagina</option>
+                        <option value="ultima">Ultima pagina</option>
+                        <option value="personalizada">Personalizada</option>
+                        <option value="todas">Todas las paginas</option>
+                    </select>
+                    <input type="number" id="paginaFirmaPersonalizada" class="page-custom-input" min="1" value="1" placeholder="Numero de pagina">
+                </div>
+            </div>
             <div class="page-controls">
                 <button type="button" class="btn btn-small btn-nav" onclick="cambiarPagina(-1)">‹</button>
                 <div class="page-indicator">Pagina <span id="paginaActual">1</span> / <span id="paginasTotal">1</span></div>
@@ -199,6 +233,7 @@ $esta_listo = !empty($archivo_pre_cargado) ? 'true' : 'false';
             <input type="hidden" name="pY" id="pY" value="0">
             <input type="hidden" name="pW" id="pW" value="0">
             <input type="hidden" name="paginaFirma" id="paginaFirma" value="1">
+            <input type="hidden" name="paginaFirmaModo" id="paginaFirmaModo" value="actual">
             <input type="hidden" name="tipoFirma" id="tipoFirma" value="normal">
             <input type="hidden" name="firmaBase64" id="firmaBase64">
             <button type="button" id="btnFirmar" onclick="intentarFirmar()" class="btn btn-sign" <?= $error_token ? 'disabled' : '' ?>>FIRMAR DOCUMENTO</button>
@@ -244,6 +279,7 @@ let firmaLista = false;
 let modoFirma = 'normal';
 let submodoNormal = 'dibujo';
 const firmaConToken = <?= $token !== '' ? 'true' : 'false' ?>;
+let paginaInputTimer = null;
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
@@ -316,6 +352,9 @@ async function cargarPdf(url) {
         paginaActual = Number(firmaConfig.pagina || 1);
         if (paginaActual < 1 || paginaActual > paginasTotal) paginaActual = 1;
         document.getElementById('paginasTotal').textContent = paginasTotal;
+        const inputPersonalizado = document.getElementById('paginaFirmaPersonalizada');
+        inputPersonalizado.max = paginasTotal;
+        inputPersonalizado.value = Math.min(Math.max(Number(inputPersonalizado.value || paginaActual), 1), paginasTotal);
         await renderPagina();
         listo = true;
     } catch (error) {
@@ -348,6 +387,9 @@ function cambiarPagina(delta) {
     const siguiente = paginaActual + delta;
     if (siguiente < 1 || siguiente > paginasTotal) return;
     paginaActual = siguiente;
+    if (document.getElementById('paginaFirmaModoSelect').value === 'personalizada') {
+        document.getElementById('paginaFirmaPersonalizada').value = paginaActual;
+    }
     renderPagina();
 }
 
@@ -466,6 +508,12 @@ function cambiarSubmodoNormal(submodo) {
 
 function posicionarFirmaInicial() {
     const rect = pdfCanvas.getBoundingClientRect();
+    const posicion = document.getElementById('posicionFirma').value;
+    if (posicion !== 'manual') {
+        aplicarPosicionFirma();
+        return;
+    }
+
     if (firmaConfig.x !== null && firmaConfig.y !== null) {
         const w = firmaConfig.w !== null ? Math.max(80, Number(firmaConfig.w) * rect.width) : firmaBox.offsetWidth;
         firmaBox.style.width = w + 'px';
@@ -478,6 +526,56 @@ function posicionarFirmaInicial() {
     actualizarCoordenadas();
 }
 
+function aplicarPosicionFirma() {
+    if (!firmaLista || !pdfCanvas.width) return;
+    const posicion = document.getElementById('posicionFirma').value;
+    if (posicion === 'manual') {
+        actualizarCoordenadas();
+        return;
+    }
+
+    const rect = pdfCanvas.getBoundingClientRect();
+    const margin = 24;
+    const xMap = {
+        izquierda: margin,
+        medio: Math.max(margin, (rect.width - firmaBox.offsetWidth) / 2),
+        derecha: Math.max(margin, rect.width - firmaBox.offsetWidth - margin),
+    };
+    const yMap = {
+        superior: margin,
+        medio: Math.max(margin, (rect.height - firmaBox.offsetHeight) / 2),
+        inferior: Math.max(margin, rect.height - firmaBox.offsetHeight - margin),
+    };
+    const [vertical, horizontal] = posicion.split('_');
+    firmaBox.style.left = xMap[horizontal] + 'px';
+    firmaBox.style.top = yMap[vertical] + 'px';
+    actualizarCoordenadas();
+}
+
+async function aplicarPaginaFirmaModo() {
+    const modo = document.getElementById('paginaFirmaModoSelect').value;
+    const inputPersonalizado = document.getElementById('paginaFirmaPersonalizada');
+    document.getElementById('paginaFirmaModo').value = modo;
+    inputPersonalizado.classList.toggle('show', modo === 'personalizada');
+    inputPersonalizado.max = paginasTotal;
+
+    if (!pdfDoc) return;
+    if (modo === 'primera') {
+        paginaActual = 1;
+        await renderPagina();
+    } else if (modo === 'ultima') {
+        paginaActual = paginasTotal;
+        await renderPagina();
+    } else if (modo === 'personalizada') {
+        const pagina = Math.max(1, Math.min(Number(inputPersonalizado.value || 1), paginasTotal));
+        inputPersonalizado.value = pagina;
+        paginaActual = pagina;
+        await renderPagina();
+    } else {
+        actualizarCoordenadas();
+    }
+}
+
 function quitarFirma() {
     firmaLista = false;
     firmaBox.style.display = 'none';
@@ -486,12 +584,25 @@ function quitarFirma() {
 
 document.getElementById('firmaSize').addEventListener('input', function() {
     firmaBox.style.width = this.value + 'px';
-    actualizarCoordenadas();
+    aplicarPosicionFirma();
+});
+
+document.getElementById('posicionFirma').addEventListener('change', aplicarPosicionFirma);
+document.getElementById('paginaFirmaModoSelect').addEventListener('change', aplicarPaginaFirmaModo);
+document.getElementById('paginaFirmaPersonalizada').addEventListener('change', aplicarPaginaFirmaModo);
+document.getElementById('paginaFirmaPersonalizada').addEventListener('input', function() {
+    if (document.getElementById('paginaFirmaModoSelect').value !== 'personalizada') return;
+    if (this.value === '') return;
+    const pagina = Math.max(1, Math.min(Number(this.value), paginasTotal));
+    document.getElementById('paginaFirma').value = pagina;
+    clearTimeout(paginaInputTimer);
+    paginaInputTimer = setTimeout(aplicarPaginaFirmaModo, 250);
 });
 
 firmaBox.addEventListener('mousedown', function(e) {
     if (e.target.classList.contains('firma-remove')) return;
     e.preventDefault();
+    document.getElementById('posicionFirma').value = 'manual';
     const startX = e.clientX;
     const startY = e.clientY;
     const startLeft = firmaBox.offsetLeft;
@@ -519,11 +630,19 @@ firmaBox.addEventListener('mousedown', function(e) {
 
 function actualizarCoordenadas() {
     if (!pdfCanvas.width) return;
+    const modoPagina = document.getElementById('paginaFirmaModoSelect').value;
+    if (modoPagina === 'personalizada') {
+        const inputPersonalizado = document.getElementById('paginaFirmaPersonalizada');
+        const pagina = Math.max(1, Math.min(Number(inputPersonalizado.value || 1), paginasTotal));
+        inputPersonalizado.value = pagina;
+        paginaActual = pagina;
+    }
     const rect = pdfCanvas.getBoundingClientRect();
     document.getElementById('pX').value = firmaBox.offsetLeft / rect.width;
     document.getElementById('pY').value = firmaBox.offsetTop / rect.height;
     document.getElementById('pW').value = firmaBox.offsetWidth / rect.width;
     document.getElementById('paginaFirma').value = paginaActual;
+    document.getElementById('paginaFirmaModo').value = modoPagina;
 }
 
 function intentarFirmar() {
