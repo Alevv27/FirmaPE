@@ -36,6 +36,7 @@ if (empty($pdfFile) || !file_exists($pdfFile)) {
 }
 
 $tipoFirma = $_POST['tipoFirma'] ?? 'normal';
+$certificadoId = trim($_POST['certificadoId'] ?? '');
 $certPin = trim($_POST['certPin'] ?? '');
 $motivoFirma = trim($_POST['motivoFirma'] ?? '');
 $motivoFirma = $motivoFirma !== '' ? substr($motivoFirma, 0, 120) : 'Aprobacion de documento';
@@ -49,6 +50,9 @@ $imgFile = null;
 
 if ($tipoFirma === 'servidor') {
     $payloadValidacion = ['pin' => $certPin];
+    if ($certificadoId !== '') {
+        $payloadValidacion['certificado_id'] = (int) $certificadoId;
+    }
     if ($token !== '') {
         $payloadValidacion['token'] = $token;
     } else {

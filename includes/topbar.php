@@ -90,6 +90,20 @@ function render_firmape_topbar_styles(): void
     .firmape-crop-zoom button { width:34px; height:34px; border:0; border-radius:10px; background:#1f2937; color:#fff; font-size:18px; cursor:pointer; }
     .firmape-crop-zoom input { width:100%; accent-color:#22c55e; }
     .firmape-crop-confirm { width:58px; height:58px; border-radius:999px; background:#22c55e; color:white; font-size:32px; box-shadow:0 12px 30px rgba(34,197,94,.3); }
+    .firmape-code-backdrop { position:fixed; inset:0; background:rgba(15,23,42,.62); display:none; align-items:center; justify-content:center; z-index:4100; padding:20px; }
+    .firmape-code-backdrop.show { display:flex; }
+    .firmape-code-modal { width:min(430px, 94vw); background:#fff; border-radius:16px; box-shadow:0 26px 70px rgba(15,23,42,.35); overflow:hidden; color:#0f172a; }
+    .firmape-code-head { padding:20px 22px 12px; display:flex; align-items:flex-start; justify-content:space-between; gap:14px; }
+    .firmape-code-head h3 { margin:0; font-size:19px; font-weight:900; }
+    .firmape-code-head p { margin:6px 0 0; color:#64748b; font-size:13px; line-height:1.35; }
+    .firmape-code-close { width:34px; height:34px; border:0; border-radius:999px; background:#f1f5f9; color:#475569; font-size:20px; font-weight:900; cursor:pointer; }
+    .firmape-code-body { padding:0 22px 22px; display:grid; gap:14px; }
+    .firmape-code-input { width:100%; padding:14px 15px; border:1px solid #cbd5e1; border-radius:11px; font-size:18px; letter-spacing:5px; text-align:center; font-weight:900; outline:none; }
+    .firmape-code-input:focus { border-color:#0f69b5; box-shadow:0 0 0 3px rgba(15,105,181,.14); }
+    .firmape-code-actions { display:flex; justify-content:flex-end; gap:10px; }
+    .firmape-code-actions button { border:0; border-radius:10px; padding:11px 16px; font-weight:900; cursor:pointer; }
+    .firmape-code-cancel { background:#f1f5f9; color:#334155; }
+    .firmape-code-confirm { background:#0f69b5; color:#fff; }
     .firmape-profile-status { display:none; margin:2px 0 14px; padding:10px 12px; border-radius:10px; font-size:13px; font-weight:800; }
     .firmape-profile-status.show { display:block; }
     .firmape-profile-status.success { background:#dcfce7; color:#166534; }
@@ -107,6 +121,12 @@ function render_firmape_topbar_styles(): void
     .firmape-cert-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
     .firmape-cert-grid input { width:100%; padding:11px 12px; border:1px solid #cbd5e1; border-radius:10px; outline:none; }
     .firmape-cert-enroll { background:#0f69b5; color:white; }
+    .firmape-cert-list { display:grid; gap:8px; }
+    .firmape-cert-row { display:grid; grid-template-columns:1fr auto; gap:10px; align-items:center; padding:11px 12px; border:1px solid #e2e8f0; border-radius:10px; background:white; }
+    .firmape-cert-row strong { display:block; color:#0f172a; font-size:13px; }
+    .firmape-cert-row small { color:#64748b; font-weight:700; }
+    .firmape-cert-delete { width:34px; height:34px; border:0; border-radius:9px; background:#fee2e2; color:#dc2626; font-size:18px; font-weight:900; cursor:pointer; }
+    .firmape-cert-delete:hover { background:#fecaca; }
     @media (max-width: 860px) {
         .firmape-topbar { height:auto; grid-template-columns:1fr; gap:10px; padding:12px 18px; text-align:center; }
         .firmape-topbar-logo, .firmape-topbar-user { justify-content:center; }
@@ -290,12 +310,12 @@ function render_firmape_topbar(string $basePath = ''): void
                             <div class="firmape-cert-title">Mis certificados</div>
                             <div class="firmape-cert-card">
                                 <div class="firmape-cert-status" id="firmapeCertStatus">Consultando certificado...</div>
-                                <div id="firmapeCertInfo"></div>
+                                <div id="firmapeCertInfo" class="firmape-cert-list"></div>
                                 <div class="firmape-cert-grid" id="firmapeCertForm">
-                                    <input type="text" id="firmapeCertAlias" value="Certificado servidor FIRMAPE" placeholder="Alias del certificado">
+                                    <input type="text" id="firmapeCertAlias" value="Certificado servidor FIRMAPE" placeholder="Nombre del certificado">
                                     <input type="password" id="firmapeCertPin" placeholder="PIN de 4 a 8 digitos" inputmode="numeric" maxlength="8">
                                 </div>
-                                <button type="button" class="firmape-profile-btn firmape-cert-enroll" id="firmapeCertEnroll">Enrolar certificado servidor</button>
+                                <button type="button" class="firmape-profile-btn firmape-cert-enroll" id="firmapeCertEnroll">Agregar certificado servidor</button>
                             </div>
                         </div>
                     </section>
@@ -326,6 +346,24 @@ function render_firmape_topbar(string $basePath = ''): void
             </div>
         </div>
     </div>
+    <div class="firmape-code-backdrop" id="firmapeCodeModal">
+        <div class="firmape-code-modal" role="dialog" aria-modal="true" aria-labelledby="firmapeCodeTitle">
+            <div class="firmape-code-head">
+                <div>
+                    <h3 id="firmapeCodeTitle">Confirmar certificado</h3>
+                    <p id="firmapeCodeText">Ingresa el codigo enviado a tu correo.</p>
+                </div>
+                <button type="button" class="firmape-code-close" onclick="resolverCodigoCertificadoFirmape(null)">×</button>
+            </div>
+            <div class="firmape-code-body">
+                <input type="text" id="firmapeCodeInput" class="firmape-code-input" inputmode="numeric" maxlength="6" placeholder="000000">
+                <div class="firmape-code-actions">
+                    <button type="button" class="firmape-code-cancel" onclick="resolverCodigoCertificadoFirmape(null)">Cancelar</button>
+                    <button type="button" class="firmape-code-confirm" onclick="resolverCodigoCertificadoFirmape()">Confirmar</button>
+                </div>
+            </div>
+        </div>
+    </div>
     <script>
     const firmapePerfilEndpoint = <?= json_encode($profileEndpoint, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?>;
     const firmapeFotoEndpoint = <?= json_encode($photoEndpoint, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?>;
@@ -335,6 +373,7 @@ function render_firmape_topbar(string $basePath = ''): void
     const firmapePuedeCertificado = <?= $perfil === 'FIRMANTE' ? 'true' : 'false' ?>;
     let firmapeFotoRecortada = null;
     let firmapeCropState = { url: '', naturalWidth: 0, naturalHeight: 0, scale: 1, minScale: 1, x: 0, y: 0, dragging: false, startX: 0, startY: 0 };
+    let firmapeCodeResolver = null;
 
     function actualizarHora() {
         const now = new Date();
@@ -635,16 +674,25 @@ function render_firmape_topbar(string $basePath = ''): void
             const data = await response.json();
             if (!response.ok || !data.ok) throw new Error(data.error || 'No se pudo consultar el certificado.');
             const cert = data.certificado || {};
-            if (cert.enrolado) {
-                status.textContent = 'Certificado servidor enrolado';
+            const certificados = cert.certificados || [];
+            if (certificados.length) {
+                status.textContent = certificados.length + ' certificado' + (certificados.length === 1 ? '' : 's') + ' servidor enrolado' + (certificados.length === 1 ? '' : 's');
                 status.className = 'firmape-cert-status ok';
-                info.innerHTML = '<strong>' + (cert.alias || 'Certificado servidor FIRMAPE') + '</strong><br><small>Serie: ' + (cert.serial || 'S/N') + '</small>';
-                document.getElementById('firmapeCertEnroll').textContent = 'Actualizar PIN del certificado';
+                info.innerHTML = certificados.map((item) => `
+                    <div class="firmape-cert-row">
+                        <div>
+                            <strong>${escapeHtmlFirmape(item.alias || 'Certificado servidor FIRMAPE')}</strong>
+                            <small>Serie: ${escapeHtmlFirmape(item.serial || 'S/N')} · ${escapeHtmlFirmape(item.origen || 'Servidor')}</small>
+                        </div>
+                        <button type="button" class="firmape-cert-delete" title="Eliminar certificado" onclick="eliminarCertificadoFirmape(${Number(item.id)})">×</button>
+                    </div>
+                `).join('');
+                document.getElementById('firmapeCertEnroll').textContent = 'Agregar otro certificado';
             } else {
-                status.textContent = 'No tiene certificado servidor enrolado';
+                status.textContent = 'No tienes certificados servidor enrolados';
                 status.className = 'firmape-cert-status';
                 info.innerHTML = '<small>Enrola un certificado servidor emulado para usar Firma Servidor con PIN.</small>';
-                document.getElementById('firmapeCertEnroll').textContent = 'Enrolar certificado servidor';
+                document.getElementById('firmapeCertEnroll').textContent = 'Agregar certificado servidor';
             }
         } catch (error) {
             status.textContent = error.message || 'No se pudo consultar el certificado.';
@@ -652,25 +700,105 @@ function render_firmape_topbar(string $basePath = ''): void
         }
     }
 
+    function escapeHtmlFirmape(value) {
+        const div = document.createElement('div');
+        div.textContent = value || '';
+        return div.innerHTML;
+    }
+
+    function pedirCodigoCertificadoFirmape(email) {
+        return new Promise((resolve) => {
+            firmapeCodeResolver = resolve;
+            const modal = document.getElementById('firmapeCodeModal');
+            const input = document.getElementById('firmapeCodeInput');
+            const text = document.getElementById('firmapeCodeText');
+            text.textContent = 'Se envio un codigo a ' + (email || 'tu correo') + '. Ingresalo para enrolar el certificado.';
+            input.value = '';
+            modal.classList.add('show');
+            setTimeout(() => input.focus(), 50);
+        });
+    }
+
+    function resolverCodigoCertificadoFirmape(valor) {
+        const modal = document.getElementById('firmapeCodeModal');
+        const input = document.getElementById('firmapeCodeInput');
+        const codigo = valor === null ? null : input.value.trim();
+        modal.classList.remove('show');
+        if (firmapeCodeResolver) firmapeCodeResolver(codigo);
+        firmapeCodeResolver = null;
+    }
+
+    document.getElementById('firmapeCodeInput')?.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') resolverCodigoCertificadoFirmape();
+        if (event.key === 'Escape') resolverCodigoCertificadoFirmape(null);
+    });
+
+    async function eliminarCertificadoFirmape(id) {
+        if (!id) {
+            mostrarEstadoPerfil('error', 'Este certificado antiguo no se puede eliminar desde aqui. Vuelve a enrolarlo para migrarlo.');
+            return;
+        }
+        if (!confirm('¿Eliminar este certificado?')) return;
+        try {
+            const response = await fetch(firmapeCertEndpoint + '?id=' + encodeURIComponent(id), {
+                method: 'DELETE',
+                headers: { 'Accept': 'application/json' }
+            });
+            const data = await response.json();
+            if (!response.ok || !data.ok) throw new Error(data.error || 'No se pudo eliminar el certificado.');
+            mostrarEstadoPerfil('success', 'Certificado eliminado correctamente.');
+            cargarCertificadoFirmape();
+        } catch (error) {
+            mostrarEstadoPerfil('error', error.message || 'No se pudo eliminar el certificado.');
+        }
+    }
+
     document.getElementById('firmapeCertEnroll')?.addEventListener('click', async () => {
         const pin = document.getElementById('firmapeCertPin').value.trim();
         const alias = document.getElementById('firmapeCertAlias').value.trim();
+        if (!alias) {
+            mostrarEstadoPerfil('error', 'Ingresa un nombre para el certificado.');
+            return;
+        }
         if (!/^\d{4,8}$/.test(pin)) {
             mostrarEstadoPerfil('error', 'El PIN del certificado debe tener entre 4 y 8 digitos.');
             return;
         }
-        const formData = new FormData();
-        formData.append('pin', pin);
-        formData.append('alias', alias);
+        const button = document.getElementById('firmapeCertEnroll');
+        button.disabled = true;
+        button.textContent = 'Enviando codigo...';
         try {
+            const codeData = new FormData();
+            codeData.append('accion', 'enviar_codigo');
+            codeData.append('alias', alias);
+            const codeResponse = await fetch(firmapeCertEndpoint, { method: 'POST', body: codeData, headers: { 'Accept': 'application/json' } });
+            const codePayload = await codeResponse.json();
+            if (!codeResponse.ok || !codePayload.ok) throw new Error(codePayload.error || 'No se pudo enviar el codigo.');
+
+            const codigo = await pedirCodigoCertificadoFirmape(codePayload.email || '');
+            if (!codigo) {
+                mostrarEstadoPerfil('error', 'Enrolamiento cancelado. Ingresa el codigo recibido para continuar.');
+                return;
+            }
+
+            button.textContent = 'Agregando certificado...';
+            const formData = new FormData();
+            formData.append('pin', pin);
+            formData.append('alias', alias);
+            formData.append('codigo', codigo.trim());
+            formData.append('certificado_token', codePayload.certificado_token || '');
             const response = await fetch(firmapeCertEndpoint, { method: 'POST', body: formData, headers: { 'Accept': 'application/json' } });
             const data = await response.json();
             if (!response.ok || !data.ok) throw new Error(data.error || 'No se pudo enrolar el certificado.');
             document.getElementById('firmapeCertPin').value = '';
-            mostrarEstadoPerfil('success', 'Certificado servidor enrolado correctamente.');
+            document.getElementById('firmapeCertAlias').value = 'Certificado servidor FIRMAPE';
+            mostrarEstadoPerfil('success', 'Certificado servidor agregado correctamente. Se envio la confirmacion a tu correo.');
             cargarCertificadoFirmape();
         } catch (error) {
             mostrarEstadoPerfil('error', error.message || 'No se pudo enrolar el certificado.');
+        } finally {
+            button.disabled = false;
+            button.textContent = 'Agregar otro certificado';
         }
     });
     </script>

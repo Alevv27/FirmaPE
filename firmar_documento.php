@@ -114,6 +114,7 @@ $dni_sello = (string) ($usuario_sello['dni'] ?? '');
         .cert-panel { display:none; border:1px solid #dbe3ef; border-radius:12px; padding:12px; background:#f8fafc; font-size:12px; color:#334155; }
         .cert-panel.show { display:block; }
         .cert-panel strong { display:block; color:#0f172a; margin-bottom:5px; }
+        .cert-panel select { width:100%; margin-top:8px; padding:10px 11px; border:1px solid #cbd5e1; border-radius:10px; background:#fff; color:#1e293b; font-size:12px; font-weight:700; outline:none; }
         .signature-tools { display: grid; gap: 10px; margin-bottom: 14px; }
         .field-label { font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 6px; }
         .field-select { width:100%; padding:10px 11px; border:1px solid #cbd5e1; border-radius:10px; background:#fff; color:#1e293b; font-size:13px; font-weight:700; outline:none; }
@@ -208,6 +209,7 @@ $dni_sello = (string) ($usuario_sello['dni'] ?? '');
             <div id="certServidorPanel" class="cert-panel">
                 <strong>Certificado servidor</strong>
                 <div id="certServidorInfo"></div>
+                <select id="certServidorSelect" onchange="actualizarCertificadoSeleccionado()"></select>
             </div>
             <div>
                 <div class="field-label">Tamaño del estampado</div>
@@ -259,6 +261,7 @@ $dni_sello = (string) ($usuario_sello['dni'] ?? '');
             <input type="hidden" name="paginaFirma" id="paginaFirma" value="1">
             <input type="hidden" name="paginaFirmaModo" id="paginaFirmaModo" value="actual">
             <input type="hidden" name="tipoFirma" id="tipoFirma" value="normal">
+            <input type="hidden" name="certificadoId" id="certificadoId">
             <input type="hidden" name="certPin" id="certPin">
             <input type="hidden" name="motivoFirma" id="motivoFirma">
             <input type="hidden" name="firmaBase64" id="firmaBase64">
@@ -308,6 +311,9 @@ let submodoNormal = 'dibujo';
 const firmaConToken = <?= $token !== '' ? 'true' : 'false' ?>;
 const firmaPosicionBloqueada = firmaConToken && firmaConfig.x !== null && firmaConfig.y !== null && firmaConfig.w !== null;
 const certificadoServidor = <?= json_encode($certificado_servidor, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+const certificadosServidor = (certificadoServidor.certificados && certificadoServidor.certificados.length)
+    ? certificadoServidor.certificados
+    : (certificadoServidor.enrolado ? [certificadoServidor] : []);
 let paginaInputTimer = null;
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -531,7 +537,7 @@ function colocarFirma(src) {
 
 function cambiarModoFirma(modo) {
     if (!listo) return mostrarToast('warning', 'Primero cargue el PDF.');
-    if (modo === 'servidor' && !certificadoServidor.enrolado) {
+    if (modo === 'servidor' && !certificadosServidor.length) {
         mostrarToast('warning', 'Primero enrola un certificado servidor desde Usuario.');
         return;
     }
@@ -543,7 +549,7 @@ function cambiarModoFirma(modo) {
     if (modo === 'servidor') {
         document.getElementById('normalOptions').style.display = 'none';
         document.getElementById('certServidorPanel').classList.add('show');
-        document.getElementById('certServidorInfo').innerHTML = `${certificadoServidor.alias || 'Certificado servidor FIRMAPE'}<br><small>Serie: ${certificadoServidor.serial || 'S/N'}</small>`;
+        renderCertificadosServidor();
         document.getElementById('firmaBase64').value = '';
         firmaPreview.style.display = 'none';
         document.getElementById('serverStamp').style.display = 'block';
@@ -557,6 +563,7 @@ function cambiarModoFirma(modo) {
     document.getElementById('normalOptions').style.display = 'block';
     document.getElementById('certServidorPanel').classList.remove('show');
     document.getElementById('certPin').value = '';
+    document.getElementById('certificadoId').value = '';
     document.getElementById('serverStamp').style.display = 'none';
     firmaPreview.style.display = 'block';
     if (!document.getElementById('firmaBase64').value) {
@@ -591,6 +598,27 @@ function posicionarFirmaInicial() {
         firmaBox.style.top = Math.max(20, rect.height - 120) + 'px';
     }
     actualizarCoordenadas();
+}
+
+function renderCertificadosServidor() {
+    const select = document.getElementById('certServidorSelect');
+    if (!select) return;
+    select.innerHTML = certificadosServidor.map((cert) => `
+        <option value="${Number(cert.id || 0)}">${escapeHtml(cert.alias || 'Certificado servidor FIRMAPE')} · ${escapeHtml(cert.serial || 'S/N')}</option>
+    `).join('');
+    actualizarCertificadoSeleccionado();
+}
+
+function certificadoSeleccionado() {
+    const id = document.getElementById('certServidorSelect')?.value || '';
+    return certificadosServidor.find((cert) => String(cert.id || 0) === String(id)) || certificadosServidor[0] || null;
+}
+
+function actualizarCertificadoSeleccionado() {
+    const cert = certificadoSeleccionado();
+    if (!cert) return;
+    document.getElementById('certificadoId').value = cert.id || '';
+    document.getElementById('certServidorInfo').innerHTML = `${escapeHtml(cert.alias || 'Certificado servidor FIRMAPE')}<br><small>Serie: ${escapeHtml(cert.serial || 'S/N')}</small>`;
 }
 
 function aplicarPosicionFirma() {
@@ -743,8 +771,13 @@ function intentarFirmar() {
 }
 
 function abrirPopupFirmaServidor() {
-    const certAlias = certificadoServidor.alias || 'Certificado servidor FIRMAPE';
-    const certSerial = certificadoServidor.serial || 'S/N';
+    const cert = certificadoSeleccionado();
+    if (!cert) {
+        mostrarToast('warning', 'Selecciona un certificado servidor.');
+        return;
+    }
+    const certAlias = cert.alias || 'Certificado servidor FIRMAPE';
+    const certSerial = cert.serial || 'S/N';
     Swal.fire({
         title: 'Firma Digital',
         html: `
@@ -787,6 +820,7 @@ function abrirPopupFirmaServidor() {
     }).then((result) => {
         if (!result.isConfirmed) return;
         document.getElementById('certPin').value = result.value.pin;
+        document.getElementById('certificadoId').value = cert.id || '';
         document.getElementById('motivoFirma').value = result.value.motivo;
         actualizarCoordenadas();
         enviarFirma();
