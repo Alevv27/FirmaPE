@@ -124,6 +124,9 @@ $toast = toast_message($mensaje, $tipoMensaje === 'success' ? 'success' : 'error
         .field textarea { min-height:72px; resize:vertical; }
         .firmante-picker { display:grid; grid-template-columns:1fr auto; gap:10px; align-items:center; border-bottom:1px solid #94a3b8; padding:4px 0 8px; min-height:49px; }
         .firmante-selected { min-width:0; color:#64748b; font-size:14px; }
+        .firmante-selected-card { display:grid; grid-template-columns:36px 1fr; align-items:center; gap:10px; min-width:0; }
+        .firmante-selected-avatar { width:36px; height:36px; border-radius:50%; background:#e0f2fe; color:#0f69b5; display:flex; align-items:center; justify-content:center; font-weight:900; overflow:hidden; flex:0 0 auto; }
+        .firmante-selected-avatar img { width:100%; height:100%; object-fit:cover; display:block; }
         .firmante-selected strong { display:block; color:#0f172a; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         .firmante-selected span { display:block; color:#64748b; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px; }
         .btn-add-firmante { border:0; border-radius:8px; background:#0f69b5; color:white; padding:11px 14px; cursor:pointer; font-weight:900; white-space:nowrap; }
@@ -170,7 +173,8 @@ $toast = toast_message($mensaje, $tipoMensaje === 'success' ? 'success' : 'error
         .firmante-list { display:grid; gap:8px; max-height:440px; overflow:auto; padding-right:4px; }
         .firmante-item { width:100%; border:1px solid #e2e8f0; background:#fff; border-radius:10px; padding:12px; display:grid; grid-template-columns:44px 1fr auto; align-items:center; gap:12px; cursor:pointer; text-align:left; }
         .firmante-item:hover, .firmante-item.selected { border-color:#60a5fa; background:#eff6ff; }
-        .firmante-avatar { width:44px; height:44px; border-radius:50%; background:#e0f2fe; color:#0f69b5; display:flex; align-items:center; justify-content:center; font-weight:900; }
+        .firmante-avatar { width:44px; height:44px; border-radius:50%; background:#e0f2fe; color:#0f69b5; display:flex; align-items:center; justify-content:center; font-weight:900; overflow:hidden; flex:0 0 auto; }
+        .firmante-avatar img { width:100%; height:100%; object-fit:cover; display:block; }
         .firmante-name { color:#0f172a; font-weight:900; margin-bottom:4px; }
         .firmante-meta { color:#64748b; font-size:13px; }
         .firmante-role { border-radius:999px; background:#dcfce7; color:#047857; padding:7px 10px; font-size:11px; font-weight:900; white-space:nowrap; }
@@ -395,6 +399,21 @@ function inicialesFirmante(firmante) {
         .join('') || 'F';
 }
 
+function fotoFirmanteSrc(firmante) {
+    const foto = String(firmante.fotoPerfil || firmante.foto_perfil || '').trim();
+    if (!foto) return '';
+    if (/^https?:\/\//i.test(foto)) return foto;
+    return foto.replace(/^\/+/, '');
+}
+
+function avatarFirmanteHtml(firmante, clase = 'firmante-avatar') {
+    const foto = fotoFirmanteSrc(firmante);
+    if (foto) {
+        return `<span class="${clase}"><img src="${escapeHtml(foto)}" alt="Foto de ${escapeHtml(nombreFirmante(firmante))}"></span>`;
+    }
+    return `<span class="${clase}">${inicialesFirmante(firmante)}</span>`;
+}
+
 function textoFirmante(firmante) {
     return `${firmante.nombre || ''} ${firmante.apellido || ''} ${firmante.dni || ''} ${firmante.email || ''}`.toLowerCase();
 }
@@ -432,7 +451,7 @@ function renderFirmantes() {
         const email = firmante.email || 'Sin correo';
         return `
             <button type="button" class="firmante-item${selected}" data-id="${id}">
-                <span class="firmante-avatar">${inicialesFirmante(firmante)}</span>
+                ${avatarFirmanteHtml(firmante)}
                 <span>
                     <span class="firmante-name">${escapeHtml(nombreFirmante(firmante))}</span>
                     <span class="firmante-meta">${escapeHtml(dni)} - ${escapeHtml(email)}</span>
@@ -455,8 +474,13 @@ function seleccionarFirmante(id) {
     firmanteSeleccionadoId = String(firmante.id);
     firmanteIdInput.value = firmanteSeleccionadoId;
     firmanteSeleccionado.innerHTML = `
-        <strong>${escapeHtml(nombreFirmante(firmante))}</strong>
-        <span>${escapeHtml(firmante.dni || 'Sin DNI')} - ${escapeHtml(firmante.email || 'Sin correo')}</span>
+        <div class="firmante-selected-card">
+            ${avatarFirmanteHtml(firmante, 'firmante-selected-avatar')}
+            <div>
+                <strong>${escapeHtml(nombreFirmante(firmante))}</strong>
+                <span>${escapeHtml(firmante.dni || 'Sin DNI')} - ${escapeHtml(firmante.email || 'Sin correo')}</span>
+            </div>
+        </div>
     `;
     cerrarFirmanteModal();
     renderFirmantes();
