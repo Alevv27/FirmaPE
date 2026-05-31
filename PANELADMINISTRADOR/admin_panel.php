@@ -86,6 +86,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['crear_usuario'])) {
 $usuariosResponse = api_request('GET', '/usuarios');
 $usuarios = $usuariosResponse['ok'] ? ($usuariosResponse['data']['usuarios'] ?? []) : [];
 $totalUsers = count($usuarios);
+$totalActivos = count(array_filter($usuarios, fn($u) => !empty($u['activo'])));
+$totalInactivos = $totalUsers - $totalActivos;
+$estadoFiltro = strtolower(trim($_GET['estado'] ?? 'activos'));
+if (!in_array($estadoFiltro, ['activos', 'inactivos', 'todos'], true)) {
+    $estadoFiltro = 'activos';
+}
+$busquedaUsuario = trim($_GET['q'] ?? '');
+$page = max((int) ($_GET['page'] ?? 1), 1);
+$perPage = 5;
+
+usort($usuarios, function (array $a, array $b): int {
+    $activoA = !empty($a['activo']) ? 1 : 0;
+    $activoB = !empty($b['activo']) ? 1 : 0;
+    if ($activoA !== $activoB) {
+        return $activoB <=> $activoA;
+    }
+
+    return strcasecmp((string) ($a['nombre'] ?? ''), (string) ($b['nombre'] ?? ''));
+});
+
+$usuariosFiltrados = array_values(array_filter($usuarios, function (array $u) use ($estadoFiltro, $busquedaUsuario): bool {
+    $activo = !empty($u['activo']);
+    if ($estadoFiltro === 'activos' && !$activo) {
+        return false;
+    }
+    if ($estadoFiltro === 'inactivos' && $activo) {
+        return false;
+    }
+
+    if ($busquedaUsuario === '') {
+        return true;
+    }
+
+    $nombreCompleto = trim((string) ($u['nombre'] ?? '') . ' ' . usuario_apellido($u));
+    $dni = (string) ($u['dni'] ?? '');
+
+    return stripos($nombreCompleto, $busquedaUsuario) !== false
+        || stripos($dni, $busquedaUsuario) !== false;
+}));
+$totalFiltrado = count($usuariosFiltrados);
+$totalPaginas = max((int) ceil($totalFiltrado / $perPage), 1);
+if ($page > $totalPaginas) {
+    $page = $totalPaginas;
+}
+$offset = ($page - 1) * $perPage;
+$usuariosPagina = array_slice($usuariosFiltrados, $offset, $perPage);
 $toast = null;
 
 if (isset($_GET['res'])) {
@@ -150,6 +196,15 @@ function usuario_apellido(array $usuario): string
         .card { background:var(--glass-bg); border-radius:16px; border:1px solid var(--glass-border); overflow:hidden; box-shadow:0 18px 42px rgba(15,23,42,.12); }
         .card-header { padding:22px 26px; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; gap:16px; }
         .card-header h3 { margin:0; font-size:20px; }
+        .filter-panel { padding:18px 26px; display:grid; grid-template-columns:minmax(260px, 1fr) auto auto; align-items:end; gap:14px; border-bottom:1px solid #e2e8f0; background:rgba(248,250,252,.82); }
+        .filter-field label { display:block; font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.6px; font-weight:900; margin-bottom:7px; }
+        .filter-field input { width:100%; padding:12px 13px; border:1px solid #cbd5e1; border-radius:10px; font-size:14px; outline:none; background:white; }
+        .filter-field input:focus { border-color:#2f8cff; box-shadow:0 0 0 3px rgba(47,140,255,.14); }
+        .select-shell { position:relative; min-width:190px; }
+        .select-shell select { width:100%; appearance:none; -webkit-appearance:none; padding:12px 42px 12px 14px; border:1px solid #cbd5e1; border-radius:12px; font-size:14px; outline:none; background:linear-gradient(180deg, #fff, #f8fafc); color:#0f172a; font-weight:900; box-shadow:0 8px 18px rgba(15,23,42,.06); cursor:pointer; }
+        .select-shell select:focus { border-color:#2f8cff; box-shadow:0 0 0 3px rgba(47,140,255,.14), 0 8px 18px rgba(15,23,42,.08); }
+        .select-shell::after { content:""; position:absolute; right:14px; top:50%; width:9px; height:9px; border-right:2px solid #475569; border-bottom:2px solid #475569; transform:translateY(-65%) rotate(45deg); pointer-events:none; }
+        .filter-actions { display:flex; gap:8px; justify-content:flex-end; }
         .table-wrap { overflow:auto; scrollbar-width:none; }
         .table-wrap::-webkit-scrollbar { width:0; height:0; }
         table { width:100%; border-collapse:collapse; }
@@ -162,6 +217,13 @@ function usuario_apellido(array $usuario): string
         .role-gestor { background:#0ea5e9; }
         .status-ok { display:inline-flex; align-items:center; gap:6px; color:#065f46; font-weight:900; }
         .status-ok::before { content:""; width:8px; height:8px; border-radius:999px; background:#22c55e; }
+        .status-muted { color:#64748b; font-weight:900; }
+        .empty-row { text-align:center; color:#64748b; font-weight:800; padding:34px 18px; }
+        .pager { display:flex; justify-content:space-between; align-items:center; gap:14px; padding:16px 26px; border-top:1px solid #e2e8f0; color:#475569; font-size:13px; font-weight:800; }
+        .pager-links { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+        .pager a, .pager span { padding:8px 12px; border-radius:8px; text-decoration:none; background:#f1f5f9; color:#334155; }
+        .pager span.disabled { opacity:.45; }
+        .pager span.page-info { background:#1e293b; color:#fff; }
         .btn { padding:12px 18px; border-radius:10px; font-size:13px; font-weight:800; text-decoration:none; cursor:pointer; border:none; display:inline-flex; align-items:center; justify-content:center; }
         .btn-dark { background:#1e293b; color:#fff; }
         .btn-panel { background:#e0f2fe; color:#0369a1; }
@@ -186,6 +248,8 @@ function usuario_apellido(array $usuario): string
         .btn-cancel { background:#f1f5f9; color:#334155; }
         @media (max-width: 1000px) {
             .stats { grid-template-columns:1fr; }
+            .filter-panel { grid-template-columns:1fr; align-items:stretch; }
+            .filter-actions { justify-content:flex-start; }
             table { min-width:980px; }
         }
         @media (max-width: 620px) {
@@ -226,8 +290,29 @@ function usuario_apellido(array $usuario): string
         <div class="card">
             <div class="card-header">
                 <h3>Gestion de Usuarios</h3>
-                <span style="color:#64748b; font-size:13px; font-weight:800;">Total: <?= $totalUsers ?></span>
+                <span style="color:#64748b; font-size:13px; font-weight:800;">Mostrando: <?= $totalFiltrado ?> / <?= $totalUsers ?></span>
             </div>
+            <form method="GET" class="filter-panel">
+                <div class="filter-field">
+                    <label>Buscar por DNI o nombre</label>
+                    <input type="search" name="q" value="<?= e($busquedaUsuario) ?>" placeholder="Ej. 00000025 o Alejandro">
+                </div>
+                <div class="filter-field">
+                    <label>Estado</label>
+                    <div class="select-shell">
+                        <select name="estado">
+                            <option value="activos" <?= $estadoFiltro === 'activos' ? 'selected' : '' ?>>Activos (<?= $totalActivos ?>)</option>
+                            <option value="inactivos" <?= $estadoFiltro === 'inactivos' ? 'selected' : '' ?>>Inactivos (<?= $totalInactivos ?>)</option>
+                            <option value="todos" <?= $estadoFiltro === 'todos' ? 'selected' : '' ?>>Todos (<?= $totalUsers ?>)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="filter-actions">
+                    <input type="hidden" name="page" value="1">
+                    <button type="submit" class="btn btn-dark">Buscar</button>
+                    <a class="btn btn-cancel" href="admin_panel.php">Limpiar</a>
+                </div>
+            </form>
             <div class="table-wrap">
                 <table>
                     <thead>
@@ -244,7 +329,7 @@ function usuario_apellido(array $usuario): string
                         </tr>
                     </thead>
                     <tbody>
-                        <?php foreach ($usuarios as $u): ?>
+                        <?php foreach ($usuariosPagina as $u): ?>
                         <?php $apellido = usuario_apellido($u); ?>
                         <tr>
                             <td><strong><?= (int) $u['id'] ?></strong></td>
@@ -255,7 +340,7 @@ function usuario_apellido(array $usuario): string
                             <?php $roleClass = 'role-' . strtolower((string) ($u['perfil'] ?? '')); ?>
                             <td><span class="role-badge <?= e($roleClass) ?>"><?= e($u['perfil'] ?? '') ?></span></td>
                             <td><?= e((string) ($u['empresaId'] ?? '')) ?></td>
-                            <td><?= !empty($u['activo']) ? '<span class="status-ok">Si</span>' : 'No' ?></td>
+                            <td><?= !empty($u['activo']) ? '<span class="status-ok">Si</span>' : '<span class="status-muted">No</span>' ?></td>
                             <td>
                                 <div class="action-group">
                                     <button
@@ -276,8 +361,32 @@ function usuario_apellido(array $usuario): string
                             </td>
                         </tr>
                         <?php endforeach; ?>
+                        <?php if (!$usuariosPagina): ?>
+                            <tr>
+                                <td colspan="9" class="empty-row">No hay usuarios para los filtros seleccionados.</td>
+                            </tr>
+                        <?php endif; ?>
                     </tbody>
                 </table>
+            </div>
+            <div class="pager">
+                <div>Mostrando maximo <?= $perPage ?> por pagina. Resultados: <?= $totalFiltrado ?></div>
+                <div class="pager-links">
+                    <?php $pagerBase = 'admin_panel.php?estado=' . urlencode($estadoFiltro) . '&q=' . urlencode($busquedaUsuario) . '&page='; ?>
+                    <?php if ($page > 1): ?>
+                        <a href="<?= e($pagerBase . ($page - 1)) ?>">Anterior</a>
+                    <?php else: ?>
+                        <span class="disabled">Anterior</span>
+                    <?php endif; ?>
+
+                    <span class="page-info">Pagina <?= $page ?> / <?= $totalPaginas ?></span>
+
+                    <?php if ($page < $totalPaginas): ?>
+                        <a href="<?= e($pagerBase . ($page + 1)) ?>">Siguiente</a>
+                    <?php else: ?>
+                        <span class="disabled">Siguiente</span>
+                    <?php endif; ?>
+                </div>
             </div>
         </div>
     </div>
