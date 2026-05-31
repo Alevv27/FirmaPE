@@ -82,6 +82,9 @@ foreach ($perfiles as $perfil) {
     <h2>Editar Usuario</h2>
 
     <form method="POST">
+        <label>DNI</label>
+        <input type="text" value="<?= e($u['dni'] ?? '') ?>" readonly>
+
         <label>Nombre</label>
         <input type="text" name="nombre" value="<?= e($u['nombre'] ?? '') ?>" required>
 

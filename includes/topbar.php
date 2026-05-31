@@ -103,6 +103,10 @@ function render_firmape_topbar(string $basePath = ''): void
                     <input type="text" value="<?= e($nombreCompleto) ?>" readonly>
                 </div>
                 <div class="firmape-profile-field">
+                    <label>DNI</label>
+                    <input type="text" value="<?= e($usuario['dni'] ?? '') ?>" readonly>
+                </div>
+                <div class="firmape-profile-field">
                     <label>Perfil</label>
                     <input type="text" value="<?= e($perfil) ?>" readonly>
                 </div>

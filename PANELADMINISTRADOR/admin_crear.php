@@ -12,6 +12,7 @@ $empresas = $empresasResponse['ok'] ? ($empresasResponse['data']['empresas'] ?? 
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $payload = [
+        'dni' => trim($_POST['dni'] ?? ''),
         'nombre' => trim($_POST['nombre'] ?? ''),
         'apellido' => trim($_POST['apellido'] ?? ''),
         'email' => trim(strtolower($_POST['email'] ?? '')),
@@ -20,8 +21,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'empresa_id' => (int) ($_POST['empresa_id'] ?? 0),
     ];
 
-    if ($payload['nombre'] === '' || $payload['apellido'] === '' || !filter_var($payload['email'], FILTER_VALIDATE_EMAIL) || $payload['password'] === '') {
-        $error = 'Completa nombre, apellido, email y contrasena.';
+    if (!preg_match('/^\d{8}$/', $payload['dni'])) {
+        $error = 'El DNI debe tener 8 digitos.';
+    } elseif ($payload['nombre'] === '' || $payload['apellido'] === '' || !filter_var($payload['email'], FILTER_VALIDATE_EMAIL) || $payload['password'] === '') {
+        $error = 'Completa DNI, nombre, apellido, email y contrasena.';
     } else {
         $response = api_request('POST', '/usuarios', $payload);
         if ($response['ok']) {
@@ -57,6 +60,7 @@ $toast = toast_message($error, 'error');
     <div class="card">
         <h2>Nuevo Usuario</h2>
         <form method="POST">
+            <label>DNI</label><input type="text" name="dni" maxlength="8" pattern="[0-9]{8}" inputmode="numeric" required>
             <label>Nombre</label><input type="text" name="nombre" required>
             <label>Apellido</label><input type="text" name="apellido" required>
             <label>Email</label><input type="email" name="email" required>

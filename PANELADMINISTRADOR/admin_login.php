@@ -7,27 +7,31 @@ $mensaje = '';
 $success = false;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = trim(strtolower($_POST['email'] ?? ''));
+    $dni = trim($_POST['dni'] ?? '');
     $password = $_POST['password'] ?? '';
 
-    $response = api_request('POST', '/auth/login', [
-        'email' => $email,
-        'password' => $password,
-    ]);
-
-    if (!$response['ok']) {
-        $mensaje = $response['error'] ?: 'No se pudo iniciar sesion.';
-    } elseif (!in_array('ADMINISTRACION', array_column($response['data']['modulos'] ?? [], 'codigo'), true)) {
-        $mensaje = 'Acceso denegado: no tienes modulo de administracion.';
+    if (!preg_match('/^\d{8}$/', $dni)) {
+        $mensaje = 'Ingresa un DNI valido de 8 digitos.';
     } else {
-        $_SESSION['auth'] = [
-            'usuario' => $response['data']['usuario'],
-            'permisos' => $response['data']['permisos'] ?? [],
-            'modulos' => $response['data']['modulos'] ?? [],
-        ];
-        $_SESSION['admin_id'] = $response['data']['usuario']['id'];
-        $_SESSION['user'] = $response['data']['usuario']['id'];
-        $success = true;
+        $response = api_request('POST', '/auth/login', [
+            'dni' => $dni,
+            'password' => $password,
+        ]);
+
+        if (!$response['ok']) {
+            $mensaje = $response['error'] ?: 'No se pudo iniciar sesion.';
+        } elseif (!in_array('ADMINISTRACION', array_column($response['data']['modulos'] ?? [], 'codigo'), true)) {
+            $mensaje = 'Acceso denegado: no tienes modulo de administracion.';
+        } else {
+            $_SESSION['auth'] = [
+                'usuario' => $response['data']['usuario'],
+                'permisos' => $response['data']['permisos'] ?? [],
+                'modulos' => $response['data']['modulos'] ?? [],
+            ];
+            $_SESSION['admin_id'] = $response['data']['usuario']['id'];
+            $_SESSION['user'] = $response['data']['usuario']['id'];
+            $success = true;
+        }
     }
 }
 
@@ -80,8 +84,8 @@ $toast = toast_message($mensaje, 'error');
 
     <form method="POST">
         <div class="input-group">
-            <label>Correo</label>
-            <input type="email" name="email" placeholder="admin@empresa.com" required>
+            <label>DNI</label>
+            <input type="text" name="dni" placeholder="12345678" maxlength="8" pattern="[0-9]{8}" inputmode="numeric" required>
         </div>
 
         <div class="input-group">

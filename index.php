@@ -7,14 +7,14 @@ $mensaje = '';
 $success = false;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = trim(strtolower($_POST['email'] ?? ''));
+    $dni = trim($_POST['dni'] ?? '');
     $password = $_POST['password'] ?? '';
 
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $mensaje = 'Ingresa un correo valido.';
+    if (!preg_match('/^\d{8}$/', $dni)) {
+        $mensaje = 'Ingresa un DNI valido de 8 digitos.';
     } else {
         $response = api_request('POST', '/auth/login', [
-            'email' => $email,
+            'dni' => $dni,
             'password' => $password,
         ]);
 
@@ -108,7 +108,7 @@ $toast = toast_message($mensaje, 'error');
     <p class="login-subtitle">Por favor, ingresa tus credenciales</p>
 
     <form method="POST">
-        <input type="email" name="email" placeholder="Correo electronico" required>
+        <input type="text" name="dni" placeholder="DNI" maxlength="8" pattern="[0-9]{8}" inputmode="numeric" required>
 
         <div class="password-container">
             <input type="password" name="password" id="password" placeholder="Contrasena" required>

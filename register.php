@@ -42,6 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['accion'] ?? '') === 'verif
 } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $nombre = trim($_POST['nombre'] ?? '');
     $apellido = trim($_POST['apellido'] ?? '');
+    $dni = trim($_POST['dni'] ?? '');
     $email = trim(strtolower($_POST['email'] ?? ''));
     $password = $_POST['password'] ?? '';
     $confirm = $_POST['confirm'] ?? '';
@@ -52,6 +53,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['accion'] ?? '') === 'verif
         $error = 'El nombre es obligatorio.';
     } elseif ($apellido === '') {
         $error = 'El apellido es obligatorio.';
+    } elseif (!preg_match('/^\d{8}$/', $dni)) {
+        $error = 'El DNI debe tener 8 digitos.';
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $error = 'Correo invalido.';
     } elseif ($password !== $confirm) {
@@ -64,6 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['accion'] ?? '') === 'verif
         $payload = [
             'nombre' => $nombre,
             'apellido' => $apellido,
+            'dni' => $dni,
             'email' => $email,
             'password' => $password,
             'perfil_id' => $perfilId,
@@ -73,6 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['accion'] ?? '') === 'verif
 
         $response = api_request('POST', '/usuarios/enviar-codigo-verificacion', [
             'nombre' => $nombre,
+            'dni' => $dni,
             'email' => $email,
             'codigo' => $codigo,
         ]);
@@ -141,6 +146,7 @@ $toast = toast_message($error ?: $info, $error ? 'error' : 'success');
             <input name="nombre" placeholder="Nombre" required>
             <input name="apellido" placeholder="Apellido" required>
         </div>
+        <input type="text" name="dni" placeholder="DNI" maxlength="8" pattern="[0-9]{8}" inputmode="numeric" required>
         <input type="email" name="email" placeholder="Correo electronico" required>
 
         <select name="perfil_id" required>

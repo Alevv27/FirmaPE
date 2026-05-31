@@ -59,6 +59,9 @@ $toast = toast_message($mensaje, $tipoMensaje === 'success' ? 'success' : 'error
         <label>Nombre completo</label>
         <input type="text" value="<?= e($usuario['nombre'] ?? '') ?>" readonly>
 
+        <label>DNI</label>
+        <input type="text" value="<?= e($usuario['dni'] ?? '') ?>" readonly>
+
         <label>Perfil</label>
         <input type="text" value="<?= e($usuario['perfil'] ?? '') ?>" readonly>
 

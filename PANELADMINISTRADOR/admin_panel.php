@@ -60,6 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['editar_id'])) {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['crear_usuario'])) {
     $payload = [
+        'dni' => trim($_POST['dni'] ?? ''),
         'nombre' => trim($_POST['nombre'] ?? ''),
         'apellido' => trim($_POST['apellido'] ?? ''),
         'email' => trim(strtolower($_POST['email'] ?? '')),
@@ -68,8 +69,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['crear_usuario'])) {
         'empresa_id' => (int) ($_POST['empresa_id'] ?? 0),
     ];
 
-    if ($payload['nombre'] === '' || $payload['apellido'] === '' || !filter_var($payload['email'], FILTER_VALIDATE_EMAIL) || $payload['password'] === '') {
-        $error = 'Completa nombre, apellido, email y contrasena.';
+    if (!preg_match('/^\d{8}$/', $payload['dni'])) {
+        $error = 'El DNI debe tener 8 digitos.';
+    } elseif ($payload['nombre'] === '' || $payload['apellido'] === '' || !filter_var($payload['email'], FILTER_VALIDATE_EMAIL) || $payload['password'] === '') {
+        $error = 'Completa DNI, nombre, apellido, email y contrasena.';
     } else {
         $response = api_request('POST', '/usuarios', $payload);
         if ($response['ok']) {
@@ -183,7 +186,7 @@ function usuario_apellido(array $usuario): string
         .btn-cancel { background:#f1f5f9; color:#334155; }
         @media (max-width: 1000px) {
             .stats { grid-template-columns:1fr; }
-            table { min-width:900px; }
+            table { min-width:980px; }
         }
         @media (max-width: 620px) {
             .modal-grid { grid-template-columns:1fr; }
@@ -230,6 +233,7 @@ function usuario_apellido(array $usuario): string
                     <thead>
                         <tr>
                             <th>ID</th>
+                            <th>DNI</th>
                             <th>Nombre</th>
                             <th>Apellido</th>
                             <th>Email</th>
@@ -244,6 +248,7 @@ function usuario_apellido(array $usuario): string
                         <?php $apellido = usuario_apellido($u); ?>
                         <tr>
                             <td><strong><?= (int) $u['id'] ?></strong></td>
+                            <td><?= e($u['dni'] ?? '') ?></td>
                             <td><?= e($u['nombre'] ?? '') ?></td>
                             <td><?= e($apellido) ?></td>
                             <td><?= e($u['email'] ?? '') ?></td>
@@ -258,6 +263,7 @@ function usuario_apellido(array $usuario): string
                                         class="btn btn-edit"
                                         onclick="abrirEditarUsuario(this)"
                                         data-id="<?= (int) $u['id'] ?>"
+                                        data-dni="<?= e($u['dni'] ?? '') ?>"
                                         data-nombre="<?= e($u['nombre'] ?? '') ?>"
                                         data-apellido="<?= e($apellido) ?>"
                                         data-email="<?= e($u['email'] ?? '') ?>"
@@ -287,6 +293,10 @@ function usuario_apellido(array $usuario): string
             <form method="POST" class="modal-body">
                 <input type="hidden" name="crear_usuario" value="1">
                 <div class="modal-grid">
+                    <div class="modal-field full">
+                        <label>DNI</label>
+                        <input type="text" name="dni" maxlength="8" pattern="[0-9]{8}" inputmode="numeric" required>
+                    </div>
                     <div class="modal-field full">
                         <label>Nombre</label>
                         <input type="text" name="nombre" required>
@@ -339,6 +349,10 @@ function usuario_apellido(array $usuario): string
             <form method="POST" class="modal-body">
                 <input type="hidden" name="editar_id" id="editarId">
                 <div class="modal-grid">
+                    <div class="modal-field full">
+                        <label>DNI</label>
+                        <input type="text" id="editarDni" readonly>
+                    </div>
                     <div class="modal-field full">
                         <label>Nombre</label>
                         <input type="text" name="nombre" id="editarNombre" required>
@@ -398,6 +412,7 @@ function usuario_apellido(array $usuario): string
 
     function abrirEditarUsuario(button) {
         document.getElementById('editarId').value = button.dataset.id || '';
+        document.getElementById('editarDni').value = button.dataset.dni || '';
         document.getElementById('editarNombre').value = button.dataset.nombre || '';
         document.getElementById('editarApellido').value = button.dataset.apellido || '';
         document.getElementById('editarEmail').value = button.dataset.email || '';
