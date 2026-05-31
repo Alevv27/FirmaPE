@@ -46,6 +46,7 @@ $usuario_sello = $firmante_token ?: (current_user() ?? []);
 $nombre_sello = strtoupper((string) ($usuario_sello['nombre'] ?? 'USUARIO DEL SISTEMA'));
 $email_sello = (string) ($usuario_sello['email'] ?? '');
 $dni_sello = (string) ($usuario_sello['dni'] ?? '');
+$perfil_actual = $token === '' ? current_profile() : 'FIRMANTE';
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -314,6 +315,7 @@ const certificadoServidor = <?= json_encode($certificado_servidor, JSON_UNESCAPE
 const certificadosServidor = (certificadoServidor.certificados && certificadoServidor.certificados.length)
     ? certificadoServidor.certificados
     : (certificadoServidor.enrolado ? [certificadoServidor] : []);
+const perfilActualFirma = <?= json_encode($perfil_actual, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
 let paginaInputTimer = null;
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -538,7 +540,14 @@ function colocarFirma(src) {
 function cambiarModoFirma(modo) {
     if (!listo) return mostrarToast('warning', 'Primero cargue el PDF.');
     if (modo === 'servidor' && !certificadosServidor.length) {
-        mostrarToast('warning', 'Primero enrola un certificado servidor desde Usuario.');
+        if (perfilActualFirma === 'FIRMANTE') {
+            mostrarToast('warning', 'Falta enrolar un certificado servidor.');
+            if (typeof abrirPerfilFirmape === 'function') {
+                setTimeout(() => abrirPerfilFirmape('certificados'), 250);
+            }
+        } else {
+            mostrarToast('warning', 'No tienes certificados servidor disponibles para este perfil.');
+        }
         return;
     }
     modoFirma = modo;

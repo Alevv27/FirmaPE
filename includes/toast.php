@@ -21,6 +21,7 @@ if (!function_exists('render_sweetalert_assets')) {
     function render_sweetalert_assets(): void
     {
         echo '<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>' . PHP_EOL;
+        echo '<style>.swal2-container{z-index:99999!important;}</style>' . PHP_EOL;
     }
 }
 

@@ -18,6 +18,7 @@ function render_firmape_topbar_styles(): void
         position: relative;
         z-index: 10;
     }
+    .swal2-container { z-index: 99999 !important; }
     .firmape-topbar * { box-sizing: border-box; }
     .firmape-topbar-logo { display:flex; align-items:center; gap:12px; }
     .firmape-topbar-logo img { width:38px; }
