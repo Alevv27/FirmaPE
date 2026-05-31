@@ -111,7 +111,7 @@ $toast = toast_message($mensaje, 'error');
         <input type="text" name="dni" placeholder="DNI" maxlength="8" pattern="[0-9]{8}" inputmode="numeric" required>
 
         <div class="password-container">
-            <input type="password" name="password" id="password" placeholder="Contrasena" required>
+            <input type="password" name="password" id="password" placeholder="Contraseña" required>
             <span class="toggle-password" id="togglePass">Ver</span>
         </div>
 
@@ -120,6 +120,7 @@ $toast = toast_message($mensaje, 'error');
 
     <div class="links">
         <a href="register.php">Crear cuenta</a>
+        <a href="recuperar_cuenta.php">Recuperar contraseña</a>
     </div>
 </div>
 

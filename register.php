@@ -14,6 +14,29 @@ $empresasResponse = api_request('GET', '/empresas');
 $perfiles = $perfilesResponse['ok'] ? ($perfilesResponse['data']['perfiles'] ?? []) : [];
 $empresas = $empresasResponse['ok'] ? ($empresasResponse['data']['empresas'] ?? []) : [];
 
+function password_segura_error(string $password): ?string
+{
+    if (strlen($password) < 8) {
+        return 'La contrasena debe tener al menos 8 caracteres.';
+    }
+    if (preg_match('/\s/', $password)) {
+        return 'La contrasena no debe contener espacios.';
+    }
+    if (!preg_match('/[a-z]/', $password)) {
+        return 'La contrasena debe incluir una letra minuscula.';
+    }
+    if (!preg_match('/[A-Z]/', $password)) {
+        return 'La contrasena debe incluir una letra mayuscula.';
+    }
+    if (!preg_match('/\d/', $password)) {
+        return 'La contrasena debe incluir un numero.';
+    }
+    if (!preg_match('/[^A-Za-z0-9]/', $password)) {
+        return 'La contrasena debe incluir un simbolo.';
+    }
+    return null;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['accion'] ?? '') === 'verificar') {
     $codigoIngresado = trim($_POST['codigo'] ?? '');
     $pendiente = $_SESSION['registro_pendiente'] ?? null;
@@ -59,8 +82,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['accion'] ?? '') === 'verif
         $error = 'Correo invalido.';
     } elseif ($password !== $confirm) {
         $error = 'Las contrasenas no coinciden.';
-    } elseif (strlen($password) < 6) {
-        $error = 'La contrasena debe tener al menos 6 caracteres.';
+    } elseif ($passwordError = password_segura_error($password)) {
+        $error = $passwordError;
     } elseif ($perfilId <= 0 || $empresaId <= 0) {
         $error = 'Selecciona perfil y empresa.';
     } else {
@@ -119,6 +142,16 @@ $toast = toast_message($error ?: $info, $error ? 'error' : 'success');
         .code-input { text-align:center; font-size:22px; letter-spacing:8px; font-weight:800; }
         .name-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
         .name-grid input { width:100%; }
+        .password-rules { margin: 8px 0 10px; padding: 10px 12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; font-size:12px; color:#64748b; display:grid; gap:5px; }
+        .password-rule { display:flex; align-items:center; gap:7px; }
+        .password-rule::before { content:'x'; width:16px; height:16px; border-radius:50%; background:#e2e8f0; color:#64748b; display:inline-flex; align-items:center; justify-content:center; font-size:10px; font-weight:900; }
+        .password-rule.ok { color:#047857; font-weight:700; }
+        .password-rule.ok::before { content:'OK'; background:#dcfce7; color:#047857; font-size:8px; }
+        .password-strength { height:6px; border-radius:999px; overflow:hidden; background:#e2e8f0; margin-top:2px; }
+        .password-strength span { display:block; height:100%; width:0%; background:#ef4444; transition:.2s ease; }
+        .password-strength.medium span { width:60%; background:#f59e0b; }
+        .password-strength.strong span { width:100%; background:#10b981; }
+        #btnRegistro:disabled { opacity:.55; cursor:not-allowed; }
         @media (max-width: 560px) {
             .name-grid { grid-template-columns:1fr; gap:0; }
         }
@@ -167,6 +200,15 @@ $toast = toast_message($error ?: $info, $error ? 'error' : 'success');
             <input type="password" name="password" id="password" placeholder="Contrasena" required>
             <span class="eye" id="togglePass">Ver</span>
         </div>
+        <div class="password-rules" id="passwordRules" aria-live="polite">
+            <div class="password-strength" id="passwordStrength"><span></span></div>
+            <div class="password-rule" data-rule="length">Minimo 8 caracteres</div>
+            <div class="password-rule" data-rule="lower">Una letra minuscula</div>
+            <div class="password-rule" data-rule="upper">Una letra mayuscula</div>
+            <div class="password-rule" data-rule="number">Un numero</div>
+            <div class="password-rule" data-rule="symbol">Un simbolo</div>
+            <div class="password-rule" data-rule="space">Sin espacios</div>
+        </div>
 
         <div class="input-group">
             <input type="password" name="confirm" id="confirm" placeholder="Confirmar contrasena" required>
@@ -202,11 +244,64 @@ function bindToggle(toggleId, inputId) {
 bindToggle("togglePass", "password");
 bindToggle("toggleConfirm", "confirm");
 
+const passwordInput = document.getElementById("password");
+const confirmInput = document.getElementById("confirm");
+const strengthBar = document.getElementById("passwordStrength");
+const ruleItems = document.querySelectorAll(".password-rule");
+
+function evaluarPassword(value) {
+    return {
+        length: value.length >= 8,
+        lower: /[a-z]/.test(value),
+        upper: /[A-Z]/.test(value),
+        number: /\d/.test(value),
+        symbol: /[^A-Za-z0-9]/.test(value),
+        space: value !== "" && !/\s/.test(value)
+    };
+}
+
+function passwordEsSegura(value) {
+    const rules = evaluarPassword(value);
+    return Object.values(rules).every(Boolean);
+}
+
+function actualizarSeguridadPassword() {
+    if (!passwordInput || !strengthBar) return;
+    const rules = evaluarPassword(passwordInput.value);
+    const okCount = Object.values(rules).filter(Boolean).length;
+
+    ruleItems.forEach((item) => {
+        item.classList.toggle("ok", Boolean(rules[item.dataset.rule]));
+    });
+
+    strengthBar.classList.remove("medium", "strong");
+    strengthBar.querySelector("span").style.width = passwordInput.value ? "30%" : "0%";
+    if (okCount >= 4 && okCount < 6) strengthBar.classList.add("medium");
+    if (okCount === 6) strengthBar.classList.add("strong");
+}
+
+passwordInput?.addEventListener("input", actualizarSeguridadPassword);
+actualizarSeguridadPassword();
+
 const btnRegistro = document.getElementById("btnRegistro");
 if (btnRegistro) {
     btnRegistro.addEventListener("click", function(e){
-        const pass = document.getElementById("password");
-        const confirm = document.getElementById("confirm");
+        const pass = passwordInput;
+        const confirm = confirmInput;
+        if (!passwordEsSegura(pass.value)) {
+            e.preventDefault();
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'warning',
+                title: 'Crea una contrasena segura antes de registrar.',
+                showConfirmButton: false,
+                timer: 3200,
+                timerProgressBar: true,
+                width: '360px'
+            });
+            return;
+        }
         if (pass.value !== confirm.value && pass.value !== "") {
             e.preventDefault();
             Swal.fire({
