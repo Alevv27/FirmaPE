@@ -36,6 +36,9 @@ if (empty($pdfFile) || !file_exists($pdfFile)) {
 }
 
 $tipoFirma = $_POST['tipoFirma'] ?? 'normal';
+$certPin = trim($_POST['certPin'] ?? '');
+$motivoFirma = trim($_POST['motivoFirma'] ?? '');
+$motivoFirma = $motivoFirma !== '' ? substr($motivoFirma, 0, 120) : 'Aprobacion de documento';
 $pX = isset($_POST['pX']) ? floatval($_POST['pX']) : 0;
 $pY = isset($_POST['pY']) ? floatval($_POST['pY']) : 0;
 $pW = isset($_POST['pW']) ? floatval($_POST['pW']) : 0;
@@ -43,6 +46,19 @@ $paginaFirma = isset($_POST['paginaFirma']) ? (int) $_POST['paginaFirma'] : 0;
 $paginaFirmaModo = $_POST['paginaFirmaModo'] ?? 'actual';
 $base64 = $_POST['firmaBase64'] ?? '';
 $imgFile = null;
+
+if ($tipoFirma === 'servidor') {
+    $payloadValidacion = ['pin' => $certPin];
+    if ($token !== '') {
+        $payloadValidacion['token'] = $token;
+    } else {
+        $payloadValidacion['usuario_id'] = (int) (current_user()['id'] ?? 0);
+    }
+    $certResponse = api_request('POST', '/usuarios/certificado/validar', $payloadValidacion);
+    if (!$certResponse['ok']) {
+        die("No se pudo validar el certificado servidor: " . ($certResponse['error'] ?? 'PIN invalido'));
+    }
+}
 
 if ($tipoFirma !== 'servidor') {
     if (empty($base64)) {
@@ -138,7 +154,7 @@ try {
                 ($dni !== "" ? "DNI: " . $dni . "\n" : "") .
                 "EMAIL: " . $email . "\n" .
                 "FECHA: " . date('d/m/Y H:i:s') . "\n" .
-                "MOTIVO: Aprobacion de documento\n" .
+                "MOTIVO: " . $motivoFirma . "\n" .
                 "UBICACION: LIMA, PERU";
             $pdf->MultiCell($realW - 8, $lineH, $txt, 0, 'L');
         } else {

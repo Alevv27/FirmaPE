@@ -54,6 +54,14 @@ function render_firmape_topbar_styles(): void
     .firmape-profile-cancel { background:#f1f5f9; color:#334155; }
     .firmape-profile-save { background:#1e293b; color:#fff; }
     .firmape-profile-save:disabled { opacity:.7; cursor:wait; }
+    .firmape-cert-box { margin-top:18px; padding-top:18px; border-top:1px solid #e2e8f0; display:grid; gap:12px; }
+    .firmape-cert-title { font-size:13px; color:#334155; font-weight:900; text-transform:uppercase; letter-spacing:.4px; }
+    .firmape-cert-card { border:1px solid #dbe3ef; border-radius:12px; padding:13px; background:#f8fafc; display:grid; gap:8px; }
+    .firmape-cert-status { font-size:13px; font-weight:900; color:#64748b; }
+    .firmape-cert-status.ok { color:#047857; }
+    .firmape-cert-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .firmape-cert-grid input { width:100%; padding:11px 12px; border:1px solid #cbd5e1; border-radius:10px; outline:none; }
+    .firmape-cert-enroll { background:#0f69b5; color:white; }
     @media (max-width: 860px) {
         .firmape-topbar { height:auto; grid-template-columns:1fr; gap:10px; padding:12px 18px; text-align:center; }
         .firmape-topbar-logo, .firmape-topbar-user { justify-content:center; }
@@ -76,6 +84,7 @@ function render_firmape_topbar(string $basePath = ''): void
         'GESTOR' => 'firmape-badge-gestor',
     ][$perfil] ?? 'firmape-badge-usuario';
     $profileEndpoint = $basePath . 'perfil_actualizar.php';
+    $certEndpoint = $basePath . 'certificado_usuario.php';
     ?>
     <header class="firmape-topbar">
         <div class="firmape-topbar-logo">
@@ -119,6 +128,20 @@ function render_firmape_topbar(string $basePath = ''): void
                     <input type="email" name="email" id="firmapePerfilEmail" value="<?= e($usuario['email'] ?? '') ?>" required>
                 </div>
                 <div class="firmape-profile-status" id="firmapePerfilStatus"></div>
+                <?php if ($perfil === 'FIRMANTE'): ?>
+                <div class="firmape-cert-box">
+                    <div class="firmape-cert-title">Seguridad y certificados</div>
+                    <div class="firmape-cert-card">
+                        <div class="firmape-cert-status" id="firmapeCertStatus">Consultando certificado...</div>
+                        <div id="firmapeCertInfo"></div>
+                        <div class="firmape-cert-grid" id="firmapeCertForm">
+                            <input type="text" id="firmapeCertAlias" value="Certificado servidor FIRMAPE" placeholder="Alias del certificado">
+                            <input type="password" id="firmapeCertPin" placeholder="PIN de 4 a 8 digitos" inputmode="numeric" maxlength="8">
+                        </div>
+                        <button type="button" class="firmape-profile-btn firmape-cert-enroll" id="firmapeCertEnroll">Enrolar certificado servidor</button>
+                    </div>
+                </div>
+                <?php endif; ?>
                 <div class="firmape-profile-actions">
                     <button type="button" class="firmape-profile-btn firmape-profile-cancel" onclick="cerrarPerfilFirmape()">Cancelar</button>
                     <button type="submit" class="firmape-profile-btn firmape-profile-save" id="firmapePerfilGuardar">Guardar cambios</button>
@@ -128,6 +151,8 @@ function render_firmape_topbar(string $basePath = ''): void
     </div>
     <script>
     const firmapePerfilEndpoint = <?= json_encode($profileEndpoint, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?>;
+    const firmapeCertEndpoint = <?= json_encode($certEndpoint, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?>;
+    const firmapePuedeCertificado = <?= $perfil === 'FIRMANTE' ? 'true' : 'false' ?>;
 
     function actualizarHora() {
         const now = new Date();
@@ -148,6 +173,7 @@ function render_firmape_topbar(string $basePath = ''): void
             status.textContent = '';
         }
         modal.classList.add('show');
+        if (firmapePuedeCertificado) cargarCertificadoFirmape();
         setTimeout(() => document.getElementById('firmapePerfilEmail')?.focus(), 40);
     }
 
@@ -185,6 +211,54 @@ function render_firmape_topbar(string $basePath = ''): void
         } finally {
             button.disabled = false;
             button.textContent = 'Guardar cambios';
+        }
+    });
+
+    async function cargarCertificadoFirmape() {
+        const status = document.getElementById('firmapeCertStatus');
+        const info = document.getElementById('firmapeCertInfo');
+        if (!status || !info) return;
+        try {
+            const response = await fetch(firmapeCertEndpoint, { headers: { 'Accept': 'application/json' } });
+            const data = await response.json();
+            if (!response.ok || !data.ok) throw new Error(data.error || 'No se pudo consultar el certificado.');
+            const cert = data.certificado || {};
+            if (cert.enrolado) {
+                status.textContent = 'Certificado servidor enrolado';
+                status.className = 'firmape-cert-status ok';
+                info.innerHTML = '<strong>' + (cert.alias || 'Certificado servidor FIRMAPE') + '</strong><br><small>Serie: ' + (cert.serial || 'S/N') + '</small>';
+                document.getElementById('firmapeCertEnroll').textContent = 'Actualizar PIN del certificado';
+            } else {
+                status.textContent = 'No tiene certificado servidor enrolado';
+                status.className = 'firmape-cert-status';
+                info.innerHTML = '<small>Enrola un certificado servidor emulado para usar Firma Servidor con PIN.</small>';
+                document.getElementById('firmapeCertEnroll').textContent = 'Enrolar certificado servidor';
+            }
+        } catch (error) {
+            status.textContent = error.message || 'No se pudo consultar el certificado.';
+            status.className = 'firmape-cert-status';
+        }
+    }
+
+    document.getElementById('firmapeCertEnroll')?.addEventListener('click', async () => {
+        const pin = document.getElementById('firmapeCertPin').value.trim();
+        const alias = document.getElementById('firmapeCertAlias').value.trim();
+        if (!/^\d{4,8}$/.test(pin)) {
+            mostrarEstadoPerfil('error', 'El PIN del certificado debe tener entre 4 y 8 digitos.');
+            return;
+        }
+        const formData = new FormData();
+        formData.append('pin', pin);
+        formData.append('alias', alias);
+        try {
+            const response = await fetch(firmapeCertEndpoint, { method: 'POST', body: formData, headers: { 'Accept': 'application/json' } });
+            const data = await response.json();
+            if (!response.ok || !data.ok) throw new Error(data.error || 'No se pudo enrolar el certificado.');
+            document.getElementById('firmapeCertPin').value = '';
+            mostrarEstadoPerfil('success', 'Certificado servidor enrolado correctamente.');
+            cargarCertificadoFirmape();
+        } catch (error) {
+            mostrarEstadoPerfil('error', error.message || 'No se pudo enrolar el certificado.');
         }
     });
     </script>

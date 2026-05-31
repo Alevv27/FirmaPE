@@ -10,6 +10,7 @@ $archivo_pre_cargado = '';
 $id_doc = '';
 $firma_config = ['pagina' => 1, 'x' => null, 'y' => null, 'w' => null];
 $firmante_token = null;
+$certificado_servidor = ['enrolado' => false, 'alias' => null, 'serial' => null];
 
 if ($token !== '') {
     $tokenResponse = api_request('GET', '/firma/token/' . rawurlencode($token));
@@ -25,6 +26,7 @@ if ($token !== '') {
             'email' => (string) ($dataToken['email'] ?? ''),
             'dni' => (string) ($dataToken['dni'] ?? ''),
         ];
+        $certificado_servidor = $dataToken['certificado'] ?? $certificado_servidor;
     } else {
         $error_token = $tokenResponse['error'] ?: 'El enlace de firma no es valido.';
     }
@@ -33,6 +35,10 @@ if ($token !== '') {
     require_profile('FIRMANTE', 'ADMIN');
     $archivo_pre_cargado = isset($_GET['archivo_existente']) ? $_GET['archivo_existente'] : '';
     $id_doc = isset($_GET['id_doc']) ? $_GET['id_doc'] : '';
+    $certResponse = api_request('GET', '/usuarios/' . (int) (current_user()['id'] ?? 0) . '/certificado');
+    if ($certResponse['ok']) {
+        $certificado_servidor = $certResponse['data']['certificado'] ?? $certificado_servidor;
+    }
 }
 
 $esta_listo = !empty($archivo_pre_cargado) ? 'true' : 'false';
@@ -105,6 +111,9 @@ $dni_sello = (string) ($usuario_sello['dni'] ?? '');
         .btn-small { padding: 10px; font-size: 12px; border-radius: 9px; }
         .nav-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
         .info-carga { background: #ecfdf5; border: 1px solid #a7f3d0; padding: 12px; border-radius: 12px; margin-bottom: 16px; font-size: 12px; color: #065f46; display: flex; align-items: center; gap: 8px; }
+        .cert-panel { display:none; border:1px solid #dbe3ef; border-radius:12px; padding:12px; background:#f8fafc; font-size:12px; color:#334155; }
+        .cert-panel.show { display:block; }
+        .cert-panel strong { display:block; color:#0f172a; margin-bottom:5px; }
         .signature-tools { display: grid; gap: 10px; margin-bottom: 14px; }
         .field-label { font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 6px; }
         .field-select { width:100%; padding:10px 11px; border:1px solid #cbd5e1; border-radius:10px; background:#fff; color:#1e293b; font-size:13px; font-weight:700; outline:none; }
@@ -196,6 +205,10 @@ $dni_sello = (string) ($usuario_sello['dni'] ?? '');
                     <button type="button" class="btn btn-small btn-upload" style="margin-top:10px;" onclick="usarImagenFirma()">USAR IMAGEN</button>
                 </div>
             </div>
+            <div id="certServidorPanel" class="cert-panel">
+                <strong>Certificado servidor</strong>
+                <div id="certServidorInfo"></div>
+            </div>
             <div>
                 <div class="field-label">Tamaño del estampado</div>
                 <input class="range" type="range" id="firmaSize" min="80" max="260" value="150">
@@ -246,6 +259,8 @@ $dni_sello = (string) ($usuario_sello['dni'] ?? '');
             <input type="hidden" name="paginaFirma" id="paginaFirma" value="1">
             <input type="hidden" name="paginaFirmaModo" id="paginaFirmaModo" value="actual">
             <input type="hidden" name="tipoFirma" id="tipoFirma" value="normal">
+            <input type="hidden" name="certPin" id="certPin">
+            <input type="hidden" name="motivoFirma" id="motivoFirma">
             <input type="hidden" name="firmaBase64" id="firmaBase64">
             <button type="button" id="btnFirmar" onclick="intentarFirmar()" class="btn btn-sign" <?= $error_token ? 'disabled' : '' ?>>FIRMAR DOCUMENTO</button>
         </form>
@@ -292,6 +307,7 @@ let modoFirma = 'normal';
 let submodoNormal = 'dibujo';
 const firmaConToken = <?= $token !== '' ? 'true' : 'false' ?>;
 const firmaPosicionBloqueada = firmaConToken && firmaConfig.x !== null && firmaConfig.y !== null && firmaConfig.w !== null;
+const certificadoServidor = <?= json_encode($certificado_servidor, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
 let paginaInputTimer = null;
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -515,6 +531,10 @@ function colocarFirma(src) {
 
 function cambiarModoFirma(modo) {
     if (!listo) return mostrarToast('warning', 'Primero cargue el PDF.');
+    if (modo === 'servidor' && !certificadoServidor.enrolado) {
+        mostrarToast('warning', 'Primero enrola un certificado servidor desde Usuario.');
+        return;
+    }
     modoFirma = modo;
     document.getElementById('tipoFirma').value = modo;
     document.getElementById('modoNormalBtn').classList.toggle('active', modo === 'normal');
@@ -522,6 +542,8 @@ function cambiarModoFirma(modo) {
 
     if (modo === 'servidor') {
         document.getElementById('normalOptions').style.display = 'none';
+        document.getElementById('certServidorPanel').classList.add('show');
+        document.getElementById('certServidorInfo').innerHTML = `${certificadoServidor.alias || 'Certificado servidor FIRMAPE'}<br><small>Serie: ${certificadoServidor.serial || 'S/N'}</small>`;
         document.getElementById('firmaBase64').value = '';
         firmaPreview.style.display = 'none';
         document.getElementById('serverStamp').style.display = 'block';
@@ -533,6 +555,8 @@ function cambiarModoFirma(modo) {
     }
 
     document.getElementById('normalOptions').style.display = 'block';
+    document.getElementById('certServidorPanel').classList.remove('show');
+    document.getElementById('certPin').value = '';
     document.getElementById('serverStamp').style.display = 'none';
     firmaPreview.style.display = 'block';
     if (!document.getElementById('firmaBase64').value) {
@@ -699,6 +723,10 @@ function intentarFirmar() {
         mostrarToast('warning', 'Debe dibujar o subir una firma y colocarla en el documento.');
         return;
     }
+    if (modoFirma === 'servidor') {
+        abrirPopupFirmaServidor();
+        return;
+    }
 
     actualizarCoordenadas();
     Swal.fire({
@@ -712,6 +740,63 @@ function intentarFirmar() {
     }).then((result) => {
         if (result.isConfirmed) enviarFirma();
     });
+}
+
+function abrirPopupFirmaServidor() {
+    const certAlias = certificadoServidor.alias || 'Certificado servidor FIRMAPE';
+    const certSerial = certificadoServidor.serial || 'S/N';
+    Swal.fire({
+        title: 'Firma Digital',
+        html: `
+            <div style="text-align:left;display:grid;gap:14px;">
+                <div style="border:1px solid #dbe3ef;border-radius:10px;padding:14px;background:#f8fafc;">
+                    <div style="font-size:12px;color:#64748b;margin-bottom:6px;">Certificado servidor</div>
+                    <strong style="display:block;color:#0f172a;">${escapeHtml(certAlias)}</strong>
+                    <small style="color:#64748b;">Serie: ${escapeHtml(certSerial)}</small>
+                </div>
+                <input id="swalCertPin" class="swal2-input" type="password" inputmode="numeric" maxlength="8" placeholder="Ingrese el PIN de su certificado" style="margin:0;width:100%;">
+                <textarea id="swalMotivoFirma" class="swal2-textarea" placeholder="Motivo de firma (opcional)" style="margin:0;width:100%;"></textarea>
+                <label style="display:flex;align-items:flex-start;gap:9px;color:#1f2937;font-size:14px;">
+                    <input id="swalAceptaFirma" type="checkbox" style="margin-top:3px;">
+                    <span>Acepto haber leido los documentos objeto de firma.</span>
+                </label>
+            </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: 'FIRMAR',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#6c5ce7',
+        focusConfirm: false,
+        didOpen: () => document.getElementById('swalCertPin')?.focus(),
+        preConfirm: () => {
+            const pin = document.getElementById('swalCertPin').value.trim();
+            const acepta = document.getElementById('swalAceptaFirma').checked;
+            if (!/^\d{4,8}$/.test(pin)) {
+                Swal.showValidationMessage('Ingrese un PIN valido de 4 a 8 digitos.');
+                return false;
+            }
+            if (!acepta) {
+                Swal.showValidationMessage('Debe aceptar la lectura del documento.');
+                return false;
+            }
+            return {
+                pin,
+                motivo: document.getElementById('swalMotivoFirma').value.trim()
+            };
+        }
+    }).then((result) => {
+        if (!result.isConfirmed) return;
+        document.getElementById('certPin').value = result.value.pin;
+        document.getElementById('motivoFirma').value = result.value.motivo;
+        actualizarCoordenadas();
+        enviarFirma();
+    });
+}
+
+function escapeHtml(value) {
+    const div = document.createElement('div');
+    div.textContent = value || '';
+    return div.innerHTML;
 }
 
 async function enviarFirma() {
